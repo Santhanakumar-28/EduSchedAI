@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
+import { apiFetch } from '../api';
 
 export default function LoginPage({ onLoginSuccess }) {
   const [selectedRole, setSelectedRole] = useState('HOD'); // 'Admin', 'HOD', 'Faculty', 'Student'
@@ -62,7 +63,7 @@ export default function LoginPage({ onLoginSuccess }) {
     const roleForBackend = roleToVerify || selectedRole;
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -100,7 +101,7 @@ export default function LoginPage({ onLoginSuccess }) {
     setHodSuccess(null);
 
     try {
-      const response = await fetch('/api/auth/register-hod', {
+      const response = await apiFetch('/api/auth/register-hod', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

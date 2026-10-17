@@ -19,7 +19,7 @@ import StudentPortalView from './components/StudentPortalView';
 import AttendanceView from './components/AttendanceView';
 import NoticesView from './components/NoticesView';
 import AdminDashboardView from './components/AdminDashboardView';
-
+import { apiFetch, apiUrl } from './api';
 export default function App() {
   // Authentication State - Defaults to null so Login Page opens by default
   const [currentUser, setCurrentUser] = useState(() => {
@@ -69,8 +69,8 @@ export default function App() {
       const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
       const [datasetRes, timetableRes] = await Promise.all([
-        fetch('/api/dataset', { headers: authHeaders }),
-        fetch('/api/timetable/current', { headers: authHeaders })
+        apiFetch('/api/dataset', { headers: authHeaders }),
+        apiFetch('/api/timetable/current', { headers: authHeaders })
       ]);
 
       const datasetJson = await datasetRes.json();
@@ -113,7 +113,7 @@ export default function App() {
     else if (personaKey === 'Student') emailToLogin = '2026cse001@student.srm.in';
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usernameOrEmail: emailToLogin, password: 'EduSched@123' })
@@ -134,7 +134,7 @@ export default function App() {
   const handleRunAIGeneration = async (customConfig = {}) => {
     try {
       setIsGenerating(true);
-      const res = await fetch('/api/timetable/generate', {
+      const res = await apiFetch('/api/timetable/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(customConfig)
@@ -159,7 +159,7 @@ export default function App() {
 
   // Export CSV
   const handleExportCSV = () => {
-    window.location.href = '/api/export/csv';
+    window.location.href = apiUrl('/api/export/csv');
   };
 
   const handleSlotSwapClick = (slot) => {

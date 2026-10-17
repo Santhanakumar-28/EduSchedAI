@@ -27,6 +27,7 @@ import {
   YAxis, 
   Tooltip 
 } from 'recharts';
+import { apiFetch } from '../api';
 
 export default function ProfessionalDashboard({ 
   currentUser, 
@@ -61,7 +62,7 @@ export default function ProfessionalDashboard({
       try {
         setIsLoadingStats(true);
         const token = localStorage.getItem('edusched_token');
-        const res = await fetch('/api/dashboard/stats', {
+        const res = await apiFetch('/api/dashboard/stats', {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         const json = await res.json();

@@ -16,6 +16,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { apiFetch } from '../api';
 
 export default function NoticesView({ currentUser }) {
   const isHOD = currentUser?.role === 'HOD';
@@ -43,7 +44,7 @@ export default function NoticesView({ currentUser }) {
   const loadNotices = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/notices', {
+      const res = await apiFetch('/api/notices', {
         headers: getAuthHeaders()
       });
       const json = await res.json();
@@ -69,7 +70,7 @@ export default function NoticesView({ currentUser }) {
     }
 
     try {
-      const res = await fetch('/api/notices/create', {
+      const res = await apiFetch('/api/notices/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -102,7 +103,7 @@ export default function NoticesView({ currentUser }) {
   const handleDeleteNotice = async (id) => {
     if (!confirm('Are you sure you want to remove this announcement?')) return;
     try {
-      const res = await fetch(`/api/notices/${id}`, {
+      const res = await apiFetch(`/api/notices/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });

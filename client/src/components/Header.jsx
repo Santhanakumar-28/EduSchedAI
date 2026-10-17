@@ -12,6 +12,7 @@ import {
   Layers,
   GraduationCap
 } from 'lucide-react';
+import { apiFetch } from '../api';
 
 export default function Header({ 
   currentUser,
@@ -51,7 +52,7 @@ export default function Header({
     try {
       const token = localStorage.getItem('edusched_token');
       if (!token) return;
-      const res = await fetch('/api/notifications', {
+      const res = await apiFetch('/api/notifications', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -73,7 +74,7 @@ export default function Header({
   const handleMarkAllRead = async () => {
     try {
       const token = localStorage.getItem('edusched_token');
-      await fetch('/api/notifications/read-all', {
+      await apiFetch('/api/notifications/read-all', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });

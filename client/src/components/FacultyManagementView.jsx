@@ -15,6 +15,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { apiFetch } from '../api';
 
 export default function FacultyManagementView({ dataset, onFacultyAdded }) {
   const [facultyList, setFacultyList] = useState([]);
@@ -90,7 +91,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
   const fetchFaculty = async () => {
     try {
       setIsLoadingList(true);
-      const res = await fetch('/api/faculty/list', {
+      const res = await apiFetch('/api/faculty/list', {
         headers: getAuthHeaders()
       });
       const data = await res.json();
@@ -129,7 +130,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
     setErrorMessage(null);
 
     try {
-      const res = await fetch('/api/faculty/add', {
+      const res = await apiFetch('/api/faculty/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -187,7 +188,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
     setErrorMessage(null);
 
     try {
-      const res = await fetch(`/api/faculty/${editingFaculty._id}`, {
+      const res = await apiFetch(`/api/faculty/${editingFaculty._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -225,7 +226,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
     }
 
     try {
-      const res = await fetch(`/api/faculty/${facultyId}`, {
+      const res = await apiFetch(`/api/faculty/${facultyId}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });

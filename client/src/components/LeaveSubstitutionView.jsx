@@ -13,6 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { apiFetch } from '../api';
 
 export default function LeaveSubstitutionView({ currentUser, dataset, schedule, onAssignSubstitute }) {
   const isHOD = currentUser?.role === 'HOD';
@@ -99,7 +100,7 @@ export default function LeaveSubstitutionView({ currentUser, dataset, schedule, 
 
   const loadLeaveRequests = async () => {
     try {
-      const res = await fetch('/api/leaves/requests', {
+      const res = await apiFetch('/api/leaves/requests', {
         headers: getAuthHeaders()
       });
       const json = await res.json();
@@ -124,7 +125,7 @@ export default function LeaveSubstitutionView({ currentUser, dataset, schedule, 
 
     try {
       setIsLoading(true);
-      const res = await fetch('/api/leaves/apply', {
+      const res = await apiFetch('/api/leaves/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -166,7 +167,7 @@ export default function LeaveSubstitutionView({ currentUser, dataset, schedule, 
     }
     try {
       setIsLoading(true);
-      const res = await fetch('/api/leaves/hod-apply', {
+      const res = await apiFetch('/api/leaves/hod-apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -202,7 +203,7 @@ export default function LeaveSubstitutionView({ currentUser, dataset, schedule, 
     }
     try {
       setIsLoading(true);
-      const res = await fetch('/api/leaves/apply', {
+      const res = await apiFetch('/api/leaves/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -237,7 +238,7 @@ export default function LeaveSubstitutionView({ currentUser, dataset, schedule, 
       setIsLoading(true);
       setSelectedAtomicLeave(leave);
       setAtomicError(null);
-      const res = await fetch(`/api/leaves/affected-periods/${leave.id}`, { headers: getAuthHeaders() });
+      const res = await apiFetch(`/api/leaves/affected-periods/${leave.id}`, { headers: getAuthHeaders() });
       const json = await res.json();
       if (json.success) {
         setAtomicAffectedData(json.data);
@@ -284,7 +285,7 @@ export default function LeaveSubstitutionView({ currentUser, dataset, schedule, 
     try {
       setIsAtomicLoading(true);
       setAtomicError(null);
-      const res = await fetch('/api/leaves/atomic-approve', {
+      const res = await apiFetch('/api/leaves/atomic-approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -315,7 +316,7 @@ export default function LeaveSubstitutionView({ currentUser, dataset, schedule, 
     if (!note || !note.trim()) return;
     try {
       setIsLoading(true);
-      const res = await fetch('/api/leaves/decide', {
+      const res = await apiFetch('/api/leaves/decide', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -342,7 +343,7 @@ export default function LeaveSubstitutionView({ currentUser, dataset, schedule, 
   const handleDecision = async (leaveId, decision, substituteFacultyId = null, reviewComment = '') => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/leaves/decide', {
+      const res = await apiFetch('/api/leaves/decide', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -374,7 +375,7 @@ export default function LeaveSubstitutionView({ currentUser, dataset, schedule, 
     setSubstitutionResults(null);
 
     try {
-      const response = await fetch('/api/leaves/substitute', {
+      const response = await apiFetch('/api/leaves/substitute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

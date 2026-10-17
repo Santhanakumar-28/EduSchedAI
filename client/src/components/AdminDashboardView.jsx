@@ -19,6 +19,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { apiFetch } from '../api';
 
 export default function AdminDashboardView({ initialTab = 'overview', onNavigateTab }) {
   const [activeSubTab, setActiveSubTab] = useState(initialTab);
@@ -66,12 +67,12 @@ export default function AdminDashboardView({ initialTab = 'overview', onNavigate
       const headers = getAuthHeaders();
 
       const [overviewRes, usersRes, auditRes, settingsRes, leavesRes, facRes] = await Promise.all([
-        fetch('/api/admin/overview', { headers }),
-        fetch('/api/admin/users', { headers }),
-        fetch('/api/admin/audit-logs', { headers }),
-        fetch('/api/admin/settings', { headers }),
-        fetch('/api/leaves/requests', { headers }),
-        fetch('/api/faculty/list', { headers })
+        apiFetch('/api/admin/overview', { headers }),
+        apiFetch('/api/admin/users', { headers }),
+        apiFetch('/api/admin/audit-logs', { headers }),
+        apiFetch('/api/admin/settings', { headers }),
+        apiFetch('/api/leaves/requests', { headers }),
+        apiFetch('/api/faculty/list', { headers })
       ]);
 
       const [ovJson, uJson, aJson, sJson, lJson, fJson] = await Promise.all([
@@ -112,7 +113,7 @@ export default function AdminDashboardView({ initialTab = 'overview', onNavigate
     e.preventDefault();
     try {
       setIsLoading(true);
-      const res = await fetch('/api/admin/departments', {
+      const res = await apiFetch('/api/admin/departments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -148,7 +149,7 @@ export default function AdminDashboardView({ initialTab = 'overview', onNavigate
     e.preventDefault();
     try {
       setIsLoading(true);
-      const res = await fetch('/api/admin/hod/create', {
+      const res = await apiFetch('/api/admin/hod/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -181,7 +182,7 @@ export default function AdminDashboardView({ initialTab = 'overview', onNavigate
   const handleToggleUserStatus = async (userId, currentStatus) => {
     const newStatus = currentStatus === 'Active' ? 'Suspended' : 'Active';
     try {
-      const res = await fetch(`/api/admin/users/${userId}/status`, {
+      const res = await apiFetch(`/api/admin/users/${userId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ status: newStatus })
@@ -207,7 +208,7 @@ export default function AdminDashboardView({ initialTab = 'overview', onNavigate
 
     try {
       setIsLoading(true);
-      const res = await fetch('/api/leaves/hod-decide', {
+      const res = await apiFetch('/api/leaves/hod-decide', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -237,7 +238,7 @@ export default function AdminDashboardView({ initialTab = 'overview', onNavigate
     e.preventDefault();
     try {
       setIsLoading(true);
-      const res = await fetch('/api/admin/settings', {
+      const res = await apiFetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(settingsData)

@@ -31,3 +31,10 @@ ui-template/
 # Temporary files
 *.tmp
 *.swp
+
+# Environment variables & secrets
+.env
+.env.local
+.env.*.local
+*.env
+!client/.env.production

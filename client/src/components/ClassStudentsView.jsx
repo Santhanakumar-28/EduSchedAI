@@ -14,6 +14,7 @@ import {
   Search 
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { apiFetch } from '../api';
 
 export default function ClassStudentsView({ currentUser, dataset }) {
   const [students, setStudents] = useState([]);
@@ -74,7 +75,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
   const fetchStudents = async () => {
     try {
       setIsLoadingList(true);
-      const res = await fetch(`/api/students?batchId=${coordinatedBatchId}`, {
+      const res = await apiFetch(`/api/students?batchId=${coordinatedBatchId}`, {
         headers: getAuthHeaders()
       });
       const data = await res.json();
@@ -110,7 +111,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
     setErrorMessage(null);
 
     try {
-      const res = await fetch('/api/students/add', {
+      const res = await apiFetch('/api/students/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -159,7 +160,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
     setErrorMessage(null);
 
     try {
-      const res = await fetch(`/api/students/${editingStudent.id}`, {
+      const res = await apiFetch(`/api/students/${editingStudent.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -192,7 +193,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
     }
 
     try {
-      const res = await fetch(`/api/students/${studentId}`, {
+      const res = await apiFetch(`/api/students/${studentId}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });

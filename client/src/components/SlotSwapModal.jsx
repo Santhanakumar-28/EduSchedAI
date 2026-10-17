@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from './ui/card';
 import { Button } from './ui/button';
+import { apiFetch } from '../api';
 
 export default function SlotSwapModal({ 
   selectedSlot, 
@@ -76,7 +77,7 @@ export default function SlotSwapModal({
         );
       }
 
-      const response = await fetch('/api/timetable/swap', {
+      const response = await apiFetch('/api/timetable/swap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

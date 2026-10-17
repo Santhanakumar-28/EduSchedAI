@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Button } from './ui/button';
+import { apiFetch } from '../api';
 
 export default function AttendanceView({ currentUser, dataset }) {
   const isStudent = currentUser?.role === 'Student';
@@ -59,7 +60,7 @@ export default function AttendanceView({ currentUser, dataset }) {
   const loadBatchRoster = async (batchId) => {
     try {
       setIsLoading(true);
-      const res = await fetch(`/api/attendance/batch/${batchId}`);
+      const res = await apiFetch(`/api/attendance/batch/${batchId}`);
       const json = await res.json();
       if (json.success) {
         setBatchStudents(json.data.students || []);
@@ -81,7 +82,7 @@ export default function AttendanceView({ currentUser, dataset }) {
       const url = isStudent 
         ? `/api/attendance/summary?studentId=${currentUser.id}` 
         : `/api/attendance/summary`;
-      const res = await fetch(url);
+      const res = await apiFetch(url);
       const json = await res.json();
       if (json.success) {
         if (isStudent) {
@@ -98,7 +99,7 @@ export default function AttendanceView({ currentUser, dataset }) {
   const loadAssignedPeriods = async () => {
     try {
       const facId = currentUser?.facultyId || currentUser?.id;
-      const res = await fetch(`/api/attendance/assigned-periods?date=${selectedDate}&facultyId=${facId}`, {
+      const res = await apiFetch(`/api/attendance/assigned-periods?date=${selectedDate}&facultyId=${facId}`, {
         headers: getAuthHeaders()
       });
       const json = await res.json();
@@ -125,7 +126,7 @@ export default function AttendanceView({ currentUser, dataset }) {
 
   const loadApprovedLeaves = async () => {
     try {
-      const res = await fetch('/api/leaves/requests', { headers: getAuthHeaders() });
+      const res = await apiFetch('/api/leaves/requests', { headers: getAuthHeaders() });
       const json = await res.json();
       if (json.success) {
         const map = {};
@@ -187,7 +188,7 @@ export default function AttendanceView({ currentUser, dataset }) {
         status: studentStatuses[s.studentId] || 'Present'
       }));
 
-      const res = await fetch('/api/attendance/mark', {
+      const res = await apiFetch('/api/attendance/mark', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
