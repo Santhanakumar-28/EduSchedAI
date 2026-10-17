@@ -14,22 +14,22 @@ const ScheduleSlotSchema = new mongoose.Schema(
       max: 10
     },
     batchId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'Batch',
       required: true
     },
     subjectId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'Subject',
       required: true
     },
     facultyId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'Faculty',
       required: true
     },
     roomId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'Room',
       required: true
     },
@@ -52,13 +52,17 @@ const ScheduleSlotSchema = new mongoose.Schema(
 
 const TimetableSchema = new mongoose.Schema(
   {
+    _id: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => new mongoose.Types.ObjectId().toString()
+    },
     title: {
       type: String,
       required: [true, 'Please provide timetable title'],
       trim: true
     },
     departmentId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'Department',
       required: true
     },
@@ -90,7 +94,7 @@ const TimetableSchema = new mongoose.Schema(
       default: 1
     },
     generatedBy: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'User',
       default: null
     }

@@ -41,7 +41,7 @@ export default function LiveDateTime({ className = '' }) {
     >
       {/* Date */}
       <div className="flex items-center space-x-1.5 text-slate-700 font-medium whitespace-nowrap shrink-0">
-        <Calendar className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+        <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
         <span className="hidden sm:inline font-semibold whitespace-nowrap">{formattedDate}</span>
         <span className="sm:hidden font-semibold whitespace-nowrap">{shortDate}</span>
       </div>

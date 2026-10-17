@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 
 const RoomSchema = new mongoose.Schema(
   {
+    _id: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => new mongoose.Types.ObjectId().toString()
+    },
     roomNumber: {
       type: String,
       required: [true, 'Please provide room number / name (e.g. LH-101)'],
@@ -36,7 +40,7 @@ const RoomSchema = new mongoose.Schema(
       }
     ],
     departmentId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'Department',
       required: true
     },
@@ -50,6 +54,6 @@ const RoomSchema = new mongoose.Schema(
   }
 );
 
-RoomSchema.index({ departmentId: 1, roomNumber: 1 }, { unique: true });
+RoomSchema.index({ departmentId: 1, roomNumber: 1 });
 
 module.exports = mongoose.model('Room', RoomSchema);

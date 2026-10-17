@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+*/node_modules/
+.pnp
+.pnp.js
+
+# Production build outputs
+dist/
+client/dist/
+build/
+out/
+
+# Vite & dev bundler cache
+.vite/
+client/node_modules/.vite/
+*/.vite/
+
+# Logs & debugging
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# External / Unused template
+ui-template/
+
+# Temporary files
+*.tmp
+*.swp

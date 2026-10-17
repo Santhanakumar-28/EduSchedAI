@@ -2,8 +2,12 @@ const mongoose = require('mongoose');
 
 const ConstraintConfigSchema = new mongoose.Schema(
   {
+    _id: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => new mongoose.Types.ObjectId().toString()
+    },
     departmentId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'Department',
       required: true,
       unique: true
@@ -29,7 +33,7 @@ const ConstraintConfigSchema = new mongoose.Schema(
     },
     lunchBreakPeriod: {
       type: Number,
-      default: 4 // Period index 4
+      default: 4
     },
     lunchDurationMinutes: {
       type: Number,

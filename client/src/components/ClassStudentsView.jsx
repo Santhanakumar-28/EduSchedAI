@@ -2,22 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { 
   UserPlus, 
   GraduationCap, 
-  ShieldCheck, 
-  KeyRound, 
   Copy, 
   CheckCircle2, 
   AlertCircle, 
   Eye, 
   EyeOff, 
-  Users, 
-  Sparkles,
-  Lock,
-  Edit,
-  Trash2,
-  X,
-  Search,
-  Filter
+  Lock, 
+  Edit, 
+  Trash2, 
+  X, 
+  Search 
 } from 'lucide-react';
+import { Button } from './ui/button';
 
 export default function ClassStudentsView({ currentUser, dataset }) {
   const [students, setStudents] = useState([]);
@@ -43,19 +39,44 @@ export default function ClassStudentsView({ currentUser, dataset }) {
   const [errorMessage, setErrorMessage] = useState(null);
   const [showPasswordMap, setShowPasswordMap] = useState({});
 
-  // Search & Filter State (Class Coordinator & HOD)
+  // Search & Filter State
   const [studentSearch, setStudentSearch] = useState('');
-  const [studentSortBy, setStudentSortBy] = useState('rollNo'); // 'rollNo', 'name'
+  const [studentSortBy, setStudentSortBy] = useState('rollNo');
+
+  const filteredStudents = students
+    .filter((std) => {
+      if (studentSearch.trim()) {
+        const q = studentSearch.toLowerCase().trim();
+        const matchName = std.name?.toLowerCase().includes(q);
+        const matchRoll = std.rollNo?.toLowerCase().includes(q);
+        const matchUser = std.username?.toLowerCase().includes(q);
+        if (!matchName && !matchRoll && !matchUser) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (studentSortBy === 'rollNo') {
+        return (a.rollNo || '').localeCompare(b.rollNo || '');
+      } else {
+        return (a.name || '').localeCompare(b.name || '');
+      }
+    });
 
   const coordinatedBatchId = currentUser?.coordinatedBatchId || 'batch_1';
   const coordinatedBatch = dataset?.batches?.find((b) => String(b._id) === String(coordinatedBatchId));
   const isCoordinator = !!currentUser?.isClassCoordinator || currentUser?.role === 'HOD';
 
-  // Load students for this section
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('edusched_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const fetchStudents = async () => {
     try {
       setIsLoadingList(true);
-      const res = await fetch(`/api/students?batchId=${coordinatedBatchId}`);
+      const res = await fetch(`/api/students?batchId=${coordinatedBatchId}`, {
+        headers: getAuthHeaders()
+      });
       const data = await res.json();
       if (data.success) {
         setStudents(data.data);
@@ -78,7 +99,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
     if (!username || username === rollNo.toLowerCase().replace(/[^a-z0-9_]/g, '_')) {
       const autoUser = val.toLowerCase().replace(/[^a-z0-9_]/g, '_');
       setUsername(autoUser);
-      setEmail(`${autoUser}@eduschedai.edu`);
+      setEmail(`${autoUser}@student.srm.in`);
     }
   };
 
@@ -91,22 +112,21 @@ export default function ClassStudentsView({ currentUser, dataset }) {
     try {
       const res = await fetch('/api/students/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           name,
           rollNo,
           email,
           username,
           password,
-          batchId: coordinatedBatchId,
-          facultyId: currentUser?.facultyId
+          batchId: coordinatedBatchId
         })
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
         setSuccessMessage(
-          `Student ${name} (${rollNo}) enrolled! Username: "${data.credentials.username}", Password: "${data.credentials.password}"`
+          `Student "${name}" (${rollNo}) enrolled! Username: "${data.credentials.username}", Password: "${data.credentials.password}"`
         );
         setName('');
         setRollNo('');
@@ -115,7 +135,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
         setPassword('EduSched@123');
         fetchStudents();
       } else {
-        setErrorMessage(data.message || 'Error adding student to section.');
+        setErrorMessage(data.message || 'Error enrolling student.');
       }
     } catch (err) {
       setErrorMessage('Network error: ' + err.message);
@@ -128,34 +148,32 @@ export default function ClassStudentsView({ currentUser, dataset }) {
     setEditingStudent(std);
     setEditName(std.name);
     setEditRollNo(std.rollNo);
-    setEditEmail(std.email);
+    setEditEmail(std.email || '');
     setEditUsername(std.username);
-    setEditPassword(std.password || 'EduSched@123');
+    setEditPassword('');
   };
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    if (!editingStudent) return;
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
-      const res = await fetch(`/api/students/update/${editingStudent.id}`, {
+      const res = await fetch(`/api/students/${editingStudent.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           name: editName,
           rollNo: editRollNo,
           email: editEmail,
           username: editUsername,
-          password: editPassword,
-          batchId: coordinatedBatchId
+          password: editPassword || undefined
         })
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        setSuccessMessage(`Student ${editName} (${editRollNo}) updated successfully!`);
+        setSuccessMessage(`Student ${editName} updated successfully.`);
         setEditingStudent(null);
         fetchStudents();
       } else {
@@ -168,19 +186,19 @@ export default function ClassStudentsView({ currentUser, dataset }) {
     }
   };
 
-  const handleDelete = async (stdId, stdName, stdRoll) => {
-    const confirmDelete = window.confirm(
-      `Are you sure you want to remove ${stdName} (${stdRoll}) from this section? This will delete their student portal account.`
-    );
-    if (!confirmDelete) return;
+  const handleDelete = async (studentId, studentName, rollNo) => {
+    if (!confirm(`Are you sure you want to remove ${studentName} (${rollNo}) from this section?`)) {
+      return;
+    }
 
     try {
-      const res = await fetch(`/api/students/delete/${stdId}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/students/${studentId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setSuccessMessage(`Student ${stdName} removed from section.`);
+        setSuccessMessage(`Student ${studentName} removed from roster.`);
         fetchStudents();
       } else {
         setErrorMessage(data.message || 'Failed to delete student.');
@@ -201,8 +219,8 @@ export default function ClassStudentsView({ currentUser, dataset }) {
 
   if (!isCoordinator) {
     return (
-      <div className="p-8 bg-white rounded-3xl border border-slate-200 text-center space-y-3 max-w-lg mx-auto mt-10">
-        <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto">
+      <div className="bg-white rounded-2xl border border-slate-100 p-8 text-center space-y-3 max-w-lg mx-auto mt-10 shadow-xs">
+        <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto border border-amber-200">
           <Lock className="w-6 h-6" />
         </div>
         <h3 className="text-base font-bold text-slate-900">Class Coordinator Portal Restricted</h3>
@@ -214,26 +232,28 @@ export default function ClassStudentsView({ currentUser, dataset }) {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* Header with Section Badge */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center">
-            <GraduationCap className="w-5 h-5 mr-2 text-indigo-600" />
-            Class Students Management (Add, Edit, Delete)
-          </h2>
-          <p className="text-xs text-slate-500">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <span>Class Students Management (Add, Edit, Delete)</span>
+          </h1>
+          <p className="text-xs text-slate-500 font-medium mt-1">
             As the Class Coordinator for <strong>{coordinatedBatch?.name || 'Your Section'}</strong>, enroll students, update records, reset passwords, or remove students.
           </p>
         </div>
 
-        <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200 self-start sm:self-auto shadow-2xs">
+        <span className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200 self-start sm:self-auto shadow-2xs">
           🌟 Section In-Charge: {coordinatedBatch?.name}
         </span>
       </div>
 
-      {/* Success / Error Alerts */}
+      {/* Alerts */}
       {successMessage && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 flex items-start space-x-2.5 text-xs animate-in fade-in">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
@@ -245,19 +265,19 @@ export default function ClassStudentsView({ currentUser, dataset }) {
 
       {errorMessage && (
         <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 flex items-center space-x-2.5 text-xs animate-in fade-in">
-          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
           <span className="font-bold">{errorMessage}</span>
         </div>
       )}
 
-      {/* Enroll Student Form */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-5 text-xs">
+      {/* Form Card */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-6 space-y-5 text-xs shadow-xs">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="font-bold text-sm text-slate-900 flex items-center">
-            <UserPlus className="w-4 h-4 mr-2 text-indigo-600" />
+            <UserPlus className="w-4 h-4 mr-2 text-blue-600" />
             Enroll Student to {coordinatedBatch?.name || 'Section'}
           </h3>
-          <span className="text-[11px] text-slate-400">Class Coordinator Authority</span>
+          <span className="text-[11px] text-slate-400 font-medium">Class Coordinator Authority</span>
         </div>
 
         <form onSubmit={handleAddSubmit} className="space-y-4">
@@ -271,7 +291,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                 placeholder="e.g. Neha Verma"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
 
@@ -283,7 +303,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                 placeholder="e.g. 2026CSE003"
                 value={rollNo}
                 onChange={(e) => handleRollNoChange(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 uppercase font-mono"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium uppercase font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
 
@@ -295,7 +315,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                 placeholder="e.g. 2026cse003"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 lowercase"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium lowercase focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
 
@@ -305,7 +325,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                 type="text"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 placeholder="Default: EduSched@123"
               />
             </div>
@@ -316,35 +336,34 @@ export default function ClassStudentsView({ currentUser, dataset }) {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition-all flex items-center space-x-2 disabled:opacity-50"
+              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl shadow-xs transition-all disabled:opacity-50"
             >
-              <UserPlus className="w-4 h-4" />
+              <UserPlus className="w-4 h-4 mr-1.5" />
               <span>{isSubmitting ? 'Enrolling...' : 'Enroll Student'}</span>
             </button>
           </div>
         </form>
       </div>
 
-      {/* Enrolled Students Table with Edit / Delete options */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden text-xs">
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+      {/* Enrolled Students Table */}
+      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden text-xs shadow-xs">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold text-slate-900">
               Students Enrolled in {coordinatedBatch?.name || 'This Section'}
             </h3>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-slate-500 mt-0.5">
               Update credentials or remove students from class roster
             </p>
           </div>
-          <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 font-bold">
+          <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-100">
             {students.length} Enrolled Students
           </span>
         </div>
 
-        {/* Search & Sort Toolbar */}
-        <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        {/* Toolbar */}
+        <div className="p-3.5 bg-slate-50/70 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           
-          {/* Search Input */}
           <div className="relative flex-1 max-w-sm">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
             <input
@@ -352,7 +371,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
               value={studentSearch}
               onChange={(e) => setStudentSearch(e.target.value)}
               placeholder="Search by student name, roll number, or username..."
-              className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 font-medium"
+              className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
             />
             {studentSearch && (
               <button
@@ -364,16 +383,15 @@ export default function ClassStudentsView({ currentUser, dataset }) {
             )}
           </div>
 
-          {/* Sort Controls */}
           <div className="flex items-center space-x-2">
             <span className="text-slate-400 font-medium">Sort by:</span>
-            <div className="flex bg-white p-0.5 rounded-xl border border-slate-200 shadow-2xs">
+            <div className="flex bg-white p-0.5 rounded-xl border border-slate-200">
               <button
                 type="button"
                 onClick={() => setStudentSortBy('rollNo')}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                className={`px-3 py-1 rounded-lg font-semibold transition-all ${
                   studentSortBy === 'rollNo'
-                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    ? 'bg-blue-600 text-white font-bold shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -382,9 +400,9 @@ export default function ClassStudentsView({ currentUser, dataset }) {
               <button
                 type="button"
                 onClick={() => setStudentSortBy('name')}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                className={`px-3 py-1 rounded-lg font-semibold transition-all ${
                   studentSortBy === 'name'
-                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    ? 'bg-blue-600 text-white font-bold shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -396,14 +414,13 @@ export default function ClassStudentsView({ currentUser, dataset }) {
               <button
                 type="button"
                 onClick={() => setStudentSearch('')}
-                className="px-2 py-1 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 font-bold flex items-center space-x-1"
+                className="h-8 px-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-bold flex items-center transition-colors"
               >
-                <X className="w-3 h-3" />
-                <span>Reset</span>
+                <X className="w-3 h-3 mr-1" /> Reset
               </button>
             )}
 
-            <span className="text-[11px] font-bold text-slate-500 ml-1">
+            <span className="text-[11px] font-bold text-slate-400 ml-1">
               Showing {filteredStudents.length} of {students.length}
             </span>
           </div>
@@ -413,7 +430,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 font-semibold text-slate-600">
+              <tr className="bg-slate-50/80 border-b border-slate-100 font-semibold text-slate-500">
                 <th className="p-3.5 pl-5">Roll Number</th>
                 <th className="p-3.5">Student Name</th>
                 <th className="p-3.5">Login Username</th>
@@ -430,10 +447,9 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                   </td>
                 </tr>
               ) : filteredStudents.map((std) => {
-
                 const isPassVisible = showPasswordMap[std.id];
                 return (
-                  <tr key={std.id} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={std.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="p-3.5 pl-5 font-mono font-bold text-slate-900">
                       {std.rollNo}
                     </td>
@@ -441,12 +457,12 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                       {std.name}
                       <span className="block text-[11px] font-normal text-slate-400">{std.email}</span>
                     </td>
-                    <td className="p-3.5 font-mono text-indigo-600 font-semibold">
+                    <td className="p-3.5 font-mono text-blue-600 font-semibold">
                       {std.username}
                     </td>
                     <td className="p-3.5">
                       <div className="flex items-center space-x-1.5">
-                        <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-[11px] font-medium text-slate-800">
+                        <span className="font-mono bg-slate-100 px-2.5 py-0.5 rounded text-[11px] font-medium text-slate-800 border border-slate-200">
                           {isPassVisible ? std.password : '••••••••••'}
                         </span>
                         <button
@@ -458,7 +474,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                         </button>
                         <button
                           onClick={() => copyToClipboard(std.password)}
-                          className="p-1 text-slate-400 hover:text-indigo-600 rounded"
+                          className="p-1 text-slate-400 hover:text-blue-600 rounded"
                           title="Copy Password"
                         >
                           <Copy className="w-3.5 h-3.5" />
@@ -474,7 +490,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                       <div className="flex items-center justify-center space-x-2">
                         <button
                           onClick={() => openEditModal(std)}
-                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Edit Student"
                         >
                           <Edit className="w-4 h-4" />
@@ -496,13 +512,13 @@ export default function ClassStudentsView({ currentUser, dataset }) {
         </div>
       </div>
 
-      {/* Edit Student Modal */}
+      {/* Edit Modal */}
       {editingStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden p-0">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
               <div className="flex items-center space-x-2">
-                <Edit className="w-4 h-4 text-indigo-600" />
+                <Edit className="w-4 h-4 text-blue-600" />
                 <h3 className="font-bold text-sm text-slate-900">Edit Student Record</h3>
               </div>
               <button
@@ -521,7 +537,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                   required
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
@@ -532,7 +548,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                   required
                   value={editRollNo}
                   onChange={(e) => setEditRollNo(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium uppercase focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
@@ -543,7 +559,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                   required
                   value={editUsername}
                   onChange={(e) => setEditUsername(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium lowercase focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium lowercase focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
@@ -553,7 +569,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                   type="email"
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
@@ -563,7 +579,7 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                   type="text"
                   value={editPassword}
                   onChange={(e) => setEditPassword(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   placeholder="Enter new password"
                 />
               </div>
@@ -572,14 +588,14 @@ export default function ClassStudentsView({ currentUser, dataset }) {
                 <button
                   type="button"
                   onClick={() => setEditingStudent(null)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold"
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-sm"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors disabled:opacity-50"
                 >
                   {isSubmitting ? 'Saving...' : 'Save Changes'}
                 </button>

@@ -2,22 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { 
   UserPlus, 
   Users, 
-  ShieldCheck, 
-  KeyRound, 
   CheckCircle2, 
   AlertCircle, 
   Copy, 
-  Sparkles, 
-  Award, 
   Eye, 
-  EyeOff,
-  UserCheck,
-  Edit,
-  Trash2,
-  X,
+  EyeOff, 
+  Edit, 
+  Trash2, 
+  X, 
   Search,
-  Filter
+  Sparkles,
+  ShieldCheck
 } from 'lucide-react';
+import { Button } from './ui/button';
 
 export default function FacultyManagementView({ dataset, onFacultyAdded }) {
   const [facultyList, setFacultyList] = useState([]);
@@ -53,19 +50,49 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
   const [errorMessage, setErrorMessage] = useState(null);
   const [showPasswordMap, setShowPasswordMap] = useState({});
 
-  // Search and Filter State (HOD Faculty Management)
+  // Search and Filter State
   const [facultySearch, setFacultySearch] = useState('');
   const [facultyCadreFilter, setFacultyCadreFilter] = useState('all');
   const [facultyRoleFilter, setFacultyRoleFilter] = useState('all');
 
   const isFacultyFilterActive = facultySearch.trim() !== '' || facultyCadreFilter !== 'all' || facultyRoleFilter !== 'all';
 
+  const filteredFaculty = facultyList.filter((f) => {
+    if (facultyCadreFilter !== 'all' && f.cadre !== facultyCadreFilter) {
+      return false;
+    }
+    if (facultyRoleFilter === 'coordinator' && !f.isClassCoordinator) {
+      return false;
+    }
+    if (facultyRoleFilter === 'regular' && f.isClassCoordinator) {
+      return false;
+    }
+    if (facultySearch.trim()) {
+      const q = facultySearch.toLowerCase().trim();
+      const matchName = f.name?.toLowerCase().includes(q);
+      const matchEmail = f.email?.toLowerCase().includes(q);
+      const matchCode = f.employeeCode?.toLowerCase().includes(q);
+      const matchUser = f.username?.toLowerCase().includes(q);
+      if (!matchName && !matchEmail && !matchCode && !matchUser) {
+        return false;
+      }
+    }
+    return true;
+  });
+
   const batches = dataset?.batches || [];
+
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('edusched_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
 
   const fetchFaculty = async () => {
     try {
       setIsLoadingList(true);
-      const res = await fetch('/api/faculty/list');
+      const res = await fetch('/api/faculty/list', {
+        headers: getAuthHeaders()
+      });
       const data = await res.json();
       if (data.success) {
         setFacultyList(data.data);
@@ -104,7 +131,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
     try {
       const res = await fetch('/api/faculty/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           name,
           email,
@@ -146,26 +173,23 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
     setEditName(f.name);
     setEditEmail(f.email);
     setEditEmployeeCode(f.employeeCode);
-    setEditCadre(f.cadre || 'AssistantProf');
-    setEditTargetHours(f.targetHours || 18);
-    setEditSpecializations(
-      Array.isArray(f.specializations) ? f.specializations.join(', ') : f.specializations || ''
-    );
+    setEditCadre(f.cadre);
+    setEditTargetHours(f.targetHours);
+    setEditSpecializations(f.specializations || '');
     setEditIsCoordinator(!!f.isClassCoordinator);
     setEditCoordinatedBatchId(f.coordinatedBatchId || batches[0]?._id || 'batch_1');
-    setEditPassword(f.password || 'EduSched@123');
+    setEditPassword('');
   };
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    if (!editingFaculty) return;
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
-      const res = await fetch(`/api/faculty/update/${editingFaculty._id}`, {
+      const res = await fetch(`/api/faculty/${editingFaculty._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           name: editName,
           email: editEmail,
@@ -175,18 +199,18 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
           specializations: editSpecializations,
           isClassCoordinator: editIsCoordinator,
           coordinatedBatchId: editIsCoordinator ? editCoordinatedBatchId : null,
-          password: editPassword
+          password: editPassword || undefined
         })
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        setSuccessMessage(`Faculty ${editName} updated successfully!`);
+        setSuccessMessage(`Faculty ${editName} updated successfully.`);
         setEditingFaculty(null);
         fetchFaculty();
         if (onFacultyAdded) onFacultyAdded();
       } else {
-        setErrorMessage(data.message || 'Failed to update faculty member.');
+        setErrorMessage(data.message || 'Failed to update faculty details.');
       }
     } catch (err) {
       setErrorMessage('Network error: ' + err.message);
@@ -196,18 +220,18 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
   };
 
   const handleDelete = async (facultyId, facultyName) => {
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete ${facultyName}? This will also delete their login account.`
-    );
-    if (!confirmDelete) return;
+    if (!confirm(`Are you sure you want to delete ${facultyName}? This will remove their user credentials and class assignments.`)) {
+      return;
+    }
 
     try {
-      const res = await fetch(`/api/faculty/delete/${facultyId}`, {
-        method: 'DELETE'
+      const res = await fetch(`/api/faculty/${facultyId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setSuccessMessage(`Faculty ${facultyName} deleted successfully.`);
+        setSuccessMessage(`Faculty member removed.`);
         fetchFaculty();
         if (onFacultyAdded) onFacultyAdded();
       } else {
@@ -218,8 +242,8 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
     }
   };
 
-  const togglePasswordVisibility = (fId) => {
-    setShowPasswordMap((prev) => ({ ...prev, [fId]: !prev[fId] }));
+  const togglePasswordVisibility = (facId) => {
+    setShowPasswordMap((prev) => ({ ...prev, [facId]: !prev[facId] }));
   };
 
   const copyToClipboard = (text) => {
@@ -228,17 +252,25 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div>
-        <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center">
-          <Users className="w-5 h-5 mr-2 text-indigo-600" />
-          Faculty Management (Add, Edit, Delete)
-        </h2>
-        <p className="text-xs text-slate-500">
-          As HOD, register new faculty members, update details/credentials, and manage Class Coordinator designations.
-        </p>
+      {/* Top Banner Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Users className="w-5 h-5" />
+            </div>
+            <span>Faculty Management (Add, Edit, Delete)</span>
+          </h1>
+          <p className="text-xs text-slate-500 font-medium mt-1">
+            As HOD, register new faculty members, update details/credentials, and manage Class Coordinator designations.
+          </p>
+        </div>
+
+        <span className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 self-start sm:self-auto">
+          {facultyList.length} Faculty Members Enrolled
+        </span>
       </div>
 
       {/* Success / Error Messages */}
@@ -259,13 +291,13 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
       )}
 
       {/* Add Faculty Form Card */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-5 text-xs">
+      <div className="bg-white rounded-2xl border border-slate-100 p-6 space-y-5 text-xs shadow-xs">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="font-bold text-sm text-slate-900 flex items-center">
-            <UserPlus className="w-4 h-4 mr-2 text-indigo-600" />
+            <UserPlus className="w-4 h-4 mr-2 text-blue-600" />
             Add New Faculty Member
           </h3>
-          <span className="text-[11px] text-slate-400">Issues Login Username & Password</span>
+          <span className="text-[11px] text-slate-400 font-medium">Issues Direct Login Credentials</span>
         </div>
 
         <form onSubmit={handleAddSubmit} className="space-y-4">
@@ -279,7 +311,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                 placeholder="e.g. Dr. Anjali Sharma"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
 
@@ -291,7 +323,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                 placeholder="e.g. anjali.sharma@eduschedai.edu"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
 
@@ -303,7 +335,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                 placeholder="e.g. FAC-CSE-013"
                 value={employeeCode}
                 onChange={(e) => setEmployeeCode(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500 uppercase"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
 
@@ -312,7 +344,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
               <select
                 value={cadre}
                 onChange={(e) => handleCadreChange(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               >
                 <option value="Professor">Professor (Target: 14h)</option>
                 <option value="AssociateProf">Associate Professor (Target: 16h)</option>
@@ -328,7 +360,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                 max="24"
                 value={targetHours}
                 onChange={(e) => setTargetHours(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
 
@@ -340,7 +372,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                 type="text"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 placeholder="Default: EduSched@123"
               />
             </div>
@@ -352,20 +384,20 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                 placeholder="e.g. Cloud Computing, Artificial Intelligence, Compiler Design"
                 value={specializations}
                 onChange={(e) => setSpecializations(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
 
           </div>
 
-          <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="p-4 bg-blue-50/40 rounded-2xl border border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center space-x-3">
               <input
                 type="checkbox"
                 id="coordCheck"
                 checked={isClassCoordinator}
                 onChange={(e) => setIsClassCoordinator(e.target.checked)}
-                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
               />
               <label htmlFor="coordCheck" className="cursor-pointer font-bold text-slate-800">
                 Designate as Class Coordinator (Section In-Charge)
@@ -373,12 +405,12 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
             </div>
 
             {isClassCoordinator && (
-              <div className="flex items-center space-x-2 animate-in fade-in">
+              <div className="flex items-center space-x-2">
                 <span className="font-semibold text-slate-600 whitespace-nowrap">Assigned Section:</span>
                 <select
                   value={coordinatedBatchId}
                   onChange={(e) => setCoordinatedBatchId(e.target.value)}
-                  className="bg-white border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-500 shadow-2xs"
+                  className="bg-white border border-blue-200 rounded-xl px-3 py-1.5 text-xs font-bold text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 >
                   {batches.map((b) => (
                     <option key={b._id} value={b._id}>
@@ -394,33 +426,32 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-sm transition-all flex items-center space-x-2 disabled:opacity-50"
+              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl shadow-xs transition-all disabled:opacity-50"
             >
-              <UserPlus className="w-4 h-4" />
+              <UserPlus className="w-4 h-4 mr-1.5" />
               <span>{isSubmitting ? 'Registering...' : 'Add Faculty Member'}</span>
             </button>
           </div>
         </form>
       </div>
 
-      {/* Faculty Directory Table with Edit / Delete buttons */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden text-xs">
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+      {/* Faculty Directory Table */}
+      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden text-xs shadow-xs">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold text-slate-900">Faculty Directory & Permissions</h3>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-slate-500 mt-0.5">
               Edit faculty details, reset passwords, or remove faculty members
             </p>
           </div>
-          <span className="px-2.5 py-1 rounded-full bg-slate-100 font-bold text-slate-700">
+          <span className="px-3 py-1 rounded-full bg-slate-100 font-bold text-slate-700">
             {facultyList.length} Faculty Members
           </span>
         </div>
 
-        {/* Search & Filter Toolbar */}
-        <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+        {/* Toolbar */}
+        <div className="p-3.5 bg-slate-50/70 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
           
-          {/* Search Input */}
           <div className="relative flex-1 max-w-sm">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
             <input
@@ -428,7 +459,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
               value={facultySearch}
               onChange={(e) => setFacultySearch(e.target.value)}
               placeholder="Search faculty name, email, code, username..."
-              className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 font-medium"
+              className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
             />
             {facultySearch && (
               <button
@@ -440,14 +471,11 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
             )}
           </div>
 
-          {/* Filters */}
           <div className="flex flex-wrap items-center gap-2">
-            
-            {/* Cadre Filter */}
             <select
               value={facultyCadreFilter}
               onChange={(e) => setFacultyCadreFilter(e.target.value)}
-              className="text-xs font-semibold bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              className="text-xs font-semibold bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             >
               <option value="all">All Cadres</option>
               <option value="Professor">Professors</option>
@@ -455,11 +483,10 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
               <option value="AssistantProf">Assistant Professors</option>
             </select>
 
-            {/* Role Filter */}
             <select
               value={facultyRoleFilter}
               onChange={(e) => setFacultyRoleFilter(e.target.value)}
-              className="text-xs font-semibold bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-800 focus:ring-2 focus:ring-indigo-500"
+              className="text-xs font-semibold bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             >
               <option value="all">All Roles</option>
               <option value="coordinator">🌟 Class Coordinators Only</option>
@@ -473,17 +500,15 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                   setFacultyCadreFilter('all');
                   setFacultyRoleFilter('all');
                 }}
-                className="px-2.5 py-1.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 font-bold flex items-center space-x-1"
+                className="h-8 px-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-bold flex items-center transition-colors"
               >
-                <X className="w-3 h-3" />
-                <span>Reset</span>
+                <X className="w-3 h-3 mr-1" /> Reset
               </button>
             )}
 
-            <span className="text-[11px] font-bold text-slate-500 ml-1">
+            <span className="text-[11px] font-bold text-slate-400 ml-1">
               Showing {filteredFaculty.length} of {facultyList.length}
             </span>
-
           </div>
 
         </div>
@@ -491,7 +516,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 font-semibold text-slate-600">
+              <tr className="bg-slate-50/80 border-b border-slate-100 font-semibold text-slate-500">
                 <th className="p-3.5 pl-5">Instructor Name</th>
                 <th className="p-3.5">Employee Code</th>
                 <th className="p-3.5">Cadre</th>
@@ -510,13 +535,12 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                   </td>
                 </tr>
               ) : filteredFaculty.map((f) => {
-
                 const isProf = f.cadre === 'Professor';
                 const isAssoc = f.cadre === 'AssociateProf';
                 const isPassVisible = showPasswordMap[f._id];
 
                 return (
-                  <tr key={f._id} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={f._id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="p-3.5 pl-5 font-bold text-slate-900">
                       {f.name}
                       <span className="block text-[11px] font-normal text-slate-400">{f.email}</span>
@@ -525,7 +549,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                       {f.employeeCode}
                     </td>
                     <td className="p-3.5">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                         isProf 
                           ? 'bg-purple-50 text-purple-700 border-purple-200' 
                           : isAssoc 
@@ -537,19 +561,19 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                     </td>
                     <td className="p-3.5">
                       {f.isClassCoordinator ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 shadow-2xs">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
                           🌟 Coordinator: {f.coordinatedBatchName || 'Section A'}
                         </span>
                       ) : (
                         <span className="text-slate-400 text-[11px]">Regular Faculty</span>
                       )}
                     </td>
-                    <td className="p-3.5 font-mono text-indigo-600 font-semibold">
+                    <td className="p-3.5 font-mono text-blue-600 font-semibold">
                       {f.username}
                     </td>
                     <td className="p-3.5">
                       <div className="flex items-center space-x-1.5">
-                        <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-[11px] font-medium text-slate-800">
+                        <span className="font-mono bg-slate-100 px-2.5 py-0.5 rounded text-[11px] font-medium text-slate-800 border border-slate-200">
                           {isPassVisible ? f.password : '••••••••••'}
                         </span>
                         <button
@@ -561,7 +585,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                         </button>
                         <button
                           onClick={() => copyToClipboard(f.password)}
-                          className="p-1 text-slate-400 hover:text-indigo-600 rounded"
+                          className="p-1 text-slate-400 hover:text-blue-600 rounded"
                           title="Copy Password"
                         >
                           <Copy className="w-3.5 h-3.5" />
@@ -575,7 +599,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                       <div className="flex items-center justify-center space-x-2">
                         <button
                           onClick={() => openEditModal(f)}
-                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Edit Faculty"
                         >
                           <Edit className="w-4 h-4" />
@@ -599,11 +623,11 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
 
       {/* Edit Faculty Modal */}
       {editingFaculty && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-xl w-full overflow-hidden p-0">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
               <div className="flex items-center space-x-2">
-                <Edit className="w-4 h-4 text-indigo-600" />
+                <Edit className="w-4 h-4 text-blue-600" />
                 <h3 className="font-bold text-sm text-slate-900">Edit Faculty: {editingFaculty.name}</h3>
               </div>
               <button
@@ -623,7 +647,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                     required
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -633,7 +657,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                     required
                     value={editEmail}
                     onChange={(e) => setEditEmail(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -643,7 +667,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                     required
                     value={editEmployeeCode}
                     onChange={(e) => setEditEmployeeCode(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium uppercase focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -651,7 +675,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                   <select
                     value={editCadre}
                     onChange={(e) => handleEditCadreChange(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   >
                     <option value="Professor">Professor (14h)</option>
                     <option value="AssociateProf">Associate Professor (16h)</option>
@@ -664,7 +688,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                     type="number"
                     value={editTargetHours}
                     onChange={(e) => setEditTargetHours(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -674,20 +698,19 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                     value={editPassword}
                     onChange={(e) => setEditPassword(e.target.value)}
                     placeholder="Enter new password"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-mono font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
               </div>
 
-              {/* Coordinator checkbox in edit modal */}
-              <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 flex items-center justify-between">
+              <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
                     id="editCoordCheck"
                     checked={editIsCoordinator}
                     onChange={(e) => setEditIsCoordinator(e.target.checked)}
-                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
                   />
                   <label htmlFor="editCoordCheck" className="cursor-pointer font-bold text-slate-800">
                     Class Coordinator for Section
@@ -698,7 +721,7 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                   <select
                     value={editCoordinatedBatchId}
                     onChange={(e) => setEditCoordinatedBatchId(e.target.value)}
-                    className="bg-white border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold text-indigo-900"
+                    className="bg-white border border-blue-200 rounded-xl px-3 py-1.5 text-xs font-bold text-blue-900"
                   >
                     {batches.map((b) => (
                       <option key={b._id} value={b._id}>
@@ -713,14 +736,14 @@ export default function FacultyManagementView({ dataset, onFacultyAdded }) {
                 <button
                   type="button"
                   onClick={() => setEditingFaculty(null)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold"
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-sm"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors disabled:opacity-50"
                 >
                   {isSubmitting ? 'Saving...' : 'Save Changes'}
                 </button>

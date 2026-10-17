@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 
 const DepartmentSchema = new mongoose.Schema(
   {
+    _id: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => new mongoose.Types.ObjectId().toString()
+    },
     code: {
       type: String,
       required: [true, 'Please provide a department code (e.g. CSE)'],
@@ -20,7 +24,7 @@ const DepartmentSchema = new mongoose.Schema(
       default: 'University Institute of Engineering & Technology'
     },
     hodRef: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'Faculty',
       default: null
     },

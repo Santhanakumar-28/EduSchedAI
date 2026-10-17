@@ -15,7 +15,7 @@ const SlotPreferenceSchema = new mongoose.Schema(
     },
     weight: {
       type: Number,
-      default: 1 // 1: Preferred, -1: Disfavored
+      default: 1
     },
     reason: {
       type: String,
@@ -48,6 +48,10 @@ const UnavailableSlotSchema = new mongoose.Schema(
 
 const FacultySchema = new mongoose.Schema(
   {
+    _id: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => new mongoose.Types.ObjectId().toString()
+    },
     name: {
       type: String,
       required: [true, 'Please provide faculty name'],
@@ -68,7 +72,7 @@ const FacultySchema = new mongoose.Schema(
       trim: true
     },
     departmentId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'Department',
       required: true
     },
@@ -80,7 +84,7 @@ const FacultySchema = new mongoose.Schema(
     targetHours: {
       type: Number,
       required: true,
-      default: 16 // Standard weekly target
+      default: 16
     },
     maxDailyHours: {
       type: Number,
@@ -97,6 +101,14 @@ const FacultySchema = new mongoose.Schema(
     currentAssignedHours: {
       type: Number,
       default: 0
+    },
+    isClassCoordinator: {
+      type: Boolean,
+      default: false
+    },
+    coordinatedBatchId: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
     },
     isActive: {
       type: Boolean,
@@ -119,7 +131,7 @@ FacultySchema.pre('save', function (next) {
   next();
 });
 
-FacultySchema.index({ departmentId: 1, employeeCode: 1 }, { unique: true });
-FacultySchema.index({ departmentId: 1, email: 1 }, { unique: true });
+FacultySchema.index({ departmentId: 1, employeeCode: 1 });
+FacultySchema.index({ departmentId: 1, email: 1 });
 
 module.exports = mongoose.model('Faculty', FacultySchema);

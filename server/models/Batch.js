@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 
 const BatchSchema = new mongoose.Schema(
   {
+    _id: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => new mongoose.Types.ObjectId().toString()
+    },
     name: {
       type: String,
       required: [true, 'Please provide batch/section name (e.g. CSE-A)'],
@@ -14,7 +18,7 @@ const BatchSchema = new mongoose.Schema(
       uppercase: true
     },
     departmentId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'Department',
       required: true
     },
@@ -50,6 +54,6 @@ const BatchSchema = new mongoose.Schema(
   }
 );
 
-BatchSchema.index({ departmentId: 1, semester: 1, code: 1 }, { unique: true });
+BatchSchema.index({ departmentId: 1, semester: 1, code: 1 });
 
 module.exports = mongoose.model('Batch', BatchSchema);

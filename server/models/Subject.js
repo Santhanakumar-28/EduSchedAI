@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 
 const SubjectSchema = new mongoose.Schema(
   {
+    _id: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => new mongoose.Types.ObjectId().toString()
+    },
     code: {
       type: String,
       required: [true, 'Please provide subject code (e.g. CS401)'],
@@ -15,7 +19,7 @@ const SubjectSchema = new mongoose.Schema(
       trim: true
     },
     departmentId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'Department',
       required: true
     },
@@ -44,7 +48,7 @@ const SubjectSchema = new mongoose.Schema(
     },
     labDurationHours: {
       type: Number,
-      default: 1, // For labs, typically 2 or 3 continuous periods
+      default: 1,
       min: 1,
       max: 4
     },
@@ -55,7 +59,7 @@ const SubjectSchema = new mongoose.Schema(
     },
     assignedFacultyIds: [
       {
-        type: mongoose.Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.Mixed,
         ref: 'Faculty'
       }
     ],
@@ -69,6 +73,6 @@ const SubjectSchema = new mongoose.Schema(
   }
 );
 
-SubjectSchema.index({ departmentId: 1, code: 1 }, { unique: true });
+SubjectSchema.index({ departmentId: 1, code: 1 });
 
 module.exports = mongoose.model('Subject', SubjectSchema);

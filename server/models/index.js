@@ -7,6 +7,11 @@ const Batch = require('./Batch');
 const ConstraintConfig = require('./ConstraintConfig');
 const Timetable = require('./Timetable');
 const LeaveRequest = require('./LeaveRequest');
+const Notice = require('./Notice');
+const AttendanceSession = require('./AttendanceSession');
+const AuditLog = require('./AuditLog');
+const Notification = require('./Notification');
+const SubstituteAllocation = require('./SubstituteAllocation');
 
 module.exports = {
   User,
@@ -17,5 +22,10 @@ module.exports = {
   Batch,
   ConstraintConfig,
   Timetable,
-  LeaveRequest
+  LeaveRequest,
+  Notice,
+  AttendanceSession,
+  AuditLog,
+  Notification,
+  SubstituteAllocation
 };

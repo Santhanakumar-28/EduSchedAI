@@ -1,38 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, 
-  XCircle, 
-  Clock, 
-  Calendar, 
   Users, 
-  BookOpen, 
-  GraduationCap, 
-  BarChart3, 
-  Award,
-  AlertTriangle,
-  Save,
-  Check,
+  Save, 
+  Check, 
+  Search, 
+  X,
+  Calendar,
+  Clock,
+  BookOpen,
   Filter,
-  Search,
-  X
+  BarChart3,
+  ClipboardCheck,
+  AlertCircle
 } from 'lucide-react';
+import { Button } from './ui/button';
 
 export default function AttendanceView({ currentUser, dataset }) {
   const isStudent = currentUser?.role === 'Student';
   const isHOD = currentUser?.role === 'HOD';
   const isCoordinator = currentUser?.isClassCoordinator;
 
-  // Active sub-tab for Faculty/HOD: 'mark' or 'summary'
   const [activeSubTab, setActiveSubTab] = useState(isStudent ? 'student_view' : 'mark');
   
-  // Student Course Search & Eligibility Filter
-  const [courseSearch, setCourseSearch] = useState('');
-  const [courseFilter, setCourseFilter] = useState('all'); // 'all', 'eligible', 'shortage'
-
-  // Faculty Roster Search & Status Filter
-  const [rosterSearch, setRosterSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'Present', 'Absent', 'Late'
-
   // Selection states for marking attendance
   const [selectedBatchId, setSelectedBatchId] = useState(
     currentUser?.coordinatedBatchId || dataset?.batches?.[0]?._id || 'batch_1'
@@ -42,17 +32,30 @@ export default function AttendanceView({ currentUser, dataset }) {
   );
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedPeriod, setSelectedPeriod] = useState(1);
+  const [isSubstitutePeriod, setIsSubstitutePeriod] = useState(false);
 
-  // Student roster for selected batch
+  // Assigned periods for faculty / substitute on selectedDate
+  const [assignedPeriods, setAssignedPeriods] = useState([]);
+  const [approvedLeavesMap, setApprovedLeavesMap] = useState({});
+
+  // Roster search & filter
+  const [rosterSearch, setRosterSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  // Roster state
   const [batchStudents, setBatchStudents] = useState([]);
-  const [studentStatuses, setStudentStatuses] = useState({}); // { studentId: 'Present' | 'Absent' | 'Late' }
+  const [studentStatuses, setStudentStatuses] = useState({});
   const [attendanceSummary, setAttendanceSummary] = useState(null);
   const [studentPersonalStats, setStudentPersonalStats] = useState(null);
   
   const [isLoading, setIsLoading] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState(null);
 
-  // Load batch roster
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('edusched_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const loadBatchRoster = async (batchId) => {
     try {
       setIsLoading(true);
@@ -60,7 +63,6 @@ export default function AttendanceView({ currentUser, dataset }) {
       const json = await res.json();
       if (json.success) {
         setBatchStudents(json.data.students || []);
-        // Initialize default status to 'Present' for all students
         const initial = {};
         (json.data.students || []).forEach(s => {
           initial[s.studentId] = 'Present';
@@ -74,7 +76,6 @@ export default function AttendanceView({ currentUser, dataset }) {
     }
   };
 
-  // Load overall attendance summary
   const loadSummary = async () => {
     try {
       const url = isStudent 
@@ -94,16 +95,73 @@ export default function AttendanceView({ currentUser, dataset }) {
     }
   };
 
+  const loadAssignedPeriods = async () => {
+    try {
+      const facId = currentUser?.facultyId || currentUser?.id;
+      const res = await fetch(`/api/attendance/assigned-periods?date=${selectedDate}&facultyId=${facId}`, {
+        headers: getAuthHeaders()
+      });
+      const json = await res.json();
+      if (json.success) {
+        const pList = json.periods || [];
+        setAssignedPeriods(pList);
+        if (pList.length > 0) {
+          const match = pList.find(p => p.period === selectedPeriod && String(p.batchId) === String(selectedBatchId));
+          if (!match) {
+            const first = pList[0];
+            setSelectedPeriod(first.period);
+            setSelectedBatchId(first.batchId);
+            setSelectedSubjectId(first.subjectId);
+            setIsSubstitutePeriod(!!first.isSubstitution);
+          } else {
+            setIsSubstitutePeriod(!!match.isSubstitution);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load assigned periods:', err);
+    }
+  };
+
+  const loadApprovedLeaves = async () => {
+    try {
+      const res = await fetch('/api/leaves/requests', { headers: getAuthHeaders() });
+      const json = await res.json();
+      if (json.success) {
+        const map = {};
+        (json.data || []).forEach(l => {
+          if (l.applicantType === 'Student' && l.status === 'Approved') {
+            const lDate = l.date || l.startDate;
+            if (lDate === selectedDate || (l.startDate <= selectedDate && selectedDate <= l.endDate)) {
+              map[l.studentId] = l;
+            }
+          }
+        });
+        setApprovedLeavesMap(map);
+      }
+    } catch (err) {
+      console.error('Failed to load approved leaves:', err);
+    }
+  };
+
   useEffect(() => {
     if (!isStudent) {
       loadBatchRoster(selectedBatchId);
       loadSummary();
+      loadAssignedPeriods();
+      loadApprovedLeaves();
     } else {
       loadSummary();
     }
-  }, [selectedBatchId, isStudent]);
+  }, [selectedBatchId, selectedDate, isStudent]);
 
-  // Handle status toggle for a student
+  const handleSelectPeriodCard = (p) => {
+    setSelectedPeriod(p.period);
+    setSelectedBatchId(p.batchId);
+    setSelectedSubjectId(p.subjectId);
+    setIsSubstitutePeriod(!!p.isSubstitution);
+  };
+
   const handleStatusChange = (studentId, status) => {
     setStudentStatuses(prev => ({
       ...prev,
@@ -111,7 +169,6 @@ export default function AttendanceView({ currentUser, dataset }) {
     }));
   };
 
-  // Mark all as present
   const handleMarkAllPresent = () => {
     const updated = {};
     batchStudents.forEach(s => {
@@ -120,7 +177,6 @@ export default function AttendanceView({ currentUser, dataset }) {
     setStudentStatuses(updated);
   };
 
-  // Submit attendance session
   const handleSubmitAttendance = async () => {
     try {
       setIsLoading(true);
@@ -133,13 +189,14 @@ export default function AttendanceView({ currentUser, dataset }) {
 
       const res = await fetch('/api/attendance/mark', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           batchId: selectedBatchId,
           subjectId: selectedSubjectId,
           date: selectedDate,
           period: selectedPeriod,
-          markedByFacultyId: currentUser?.facultyId || 'fac_1',
+          markedByFacultyId: currentUser?.facultyId || currentUser?.id || 'fac_1',
+          isSubstitution: isSubstitutePeriod,
           records
         })
       });
@@ -149,87 +206,104 @@ export default function AttendanceView({ currentUser, dataset }) {
         setSaveSuccessMsg(json.message);
         loadBatchRoster(selectedBatchId);
         loadSummary();
+        loadAssignedPeriods();
         setTimeout(() => setSaveSuccessMsg(null), 4000);
       } else {
         alert(json.message || 'Error saving attendance');
       }
     } catch (err) {
       console.error(err);
-      alert('Network error submitting attendance');
+      alert('Network error submitting attendance: ' + err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const filteredBatchStudents = batchStudents.filter(std => {
+    if (rosterSearch.trim()) {
+      const q = rosterSearch.toLowerCase();
+      const matchName = std.name?.toLowerCase().includes(q);
+      const matchRoll = std.rollNo?.toLowerCase().includes(q);
+      if (!matchName && !matchRoll) return false;
+    }
+    if (statusFilter !== 'all') {
+      const curStatus = studentStatuses[std.studentId] || 'Present';
+      if (curStatus !== statusFilter) return false;
+    }
+    return true;
+  });
+
+  const presentCount = batchStudents.filter(s => (studentStatuses[s.studentId] || 'Present') === 'Present').length;
+  const onDutyCount = batchStudents.filter(s => studentStatuses[s.studentId] === 'On-Duty').length;
+  const absentCount = batchStudents.filter(s => studentStatuses[s.studentId] === 'Absent').length;
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-6 animate-in fade-in duration-300">
       
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center space-x-2">
-            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight font-display flex items-center">
-              <CheckCircle2 className="w-5 h-5 mr-2 text-indigo-600" />
-              Academic Attendance Management
-            </h1>
-            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-              UGC Minimum 75% Rule Active
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-1 font-medium">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <span>Academic Attendance Management</span>
+          </h1>
+          <p className="text-xs text-slate-500 font-medium mt-1">
             {isStudent 
               ? 'Real-time record of your session attendance, exam eligibility thresholds, and course statistics.' 
               : 'Record student attendance by lecture slot, monitor section absenteeism, and maintain audit records.'}
           </p>
         </div>
 
-        {/* Sub-tab Navigation for Faculty/HOD */}
-        {!isStudent && (
-          <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs shrink-0 self-start sm:self-auto">
-            <button
-              onClick={() => setActiveSubTab('mark')}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition-all ${
-                activeSubTab === 'mark'
-                  ? 'bg-white text-indigo-700 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              📝 Mark Attendance
-            </button>
-            <button
-              onClick={() => setActiveSubTab('summary')}
-              className={`px-3.5 py-1.5 rounded-xl font-bold transition-all ${
-                activeSubTab === 'summary'
-                  ? 'bg-white text-indigo-700 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              📊 Section Trends & History
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            UGC Minimum 75% Rule Active
+          </span>
+
+          {!isStudent && (
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs shrink-0">
+              <button
+                onClick={() => setActiveSubTab('mark')}
+                className={`px-3.5 py-1.5 rounded-lg font-bold transition-all ${
+                  activeSubTab === 'mark'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 font-medium'
+                }`}
+              >
+                📝 Mark Attendance
+              </button>
+              <button
+                onClick={() => setActiveSubTab('summary')}
+                className={`px-3.5 py-1.5 rounded-lg font-bold transition-all ${
+                  activeSubTab === 'summary'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 font-medium'
+                }`}
+              >
+                📊 Trends & History
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* STUDENT VIEW: Personal Attendance Overview & Breakdown */}
+      {/* STUDENT VIEW */}
       {isStudent && (
         <div className="space-y-6">
-          
-          {/* Top Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            
-            {/* Overall Attendance */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Overall Attendance</span>
-              <div className="my-2 flex items-baseline space-x-2">
-                <span className="text-4xl font-black text-slate-900 font-display">
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex flex-col justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Overall Attendance</span>
+              <div className="my-3 flex items-baseline space-x-2">
+                <span className="text-4xl font-extrabold text-slate-900 font-mono">
                   {studentPersonalStats?.percentage ?? 88}%
                 </span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
                   (studentPersonalStats?.percentage ?? 88) >= 75
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-rose-50 text-rose-700 border border-rose-200'
                 }`}>
-                  {(studentPersonalStats?.percentage ?? 88) >= 75 ? 'Eligible for Exams' : 'Attendance Shortage'}
+                  {(studentPersonalStats?.percentage ?? 88) >= 75 ? '✓ Eligible for Exams' : '⚠ Shortage'}
                 </span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -242,113 +316,41 @@ export default function AttendanceView({ currentUser, dataset }) {
               </div>
             </div>
 
-            {/* Classes Attended */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sessions Attended</span>
-              <div className="my-2">
-                <span className="text-4xl font-black text-indigo-700 font-display">
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex flex-col justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sessions Attended</span>
+              <div className="my-3">
+                <span className="text-4xl font-extrabold text-blue-600 font-mono">
                   {studentPersonalStats?.attended ?? 17}
                 </span>
                 <span className="text-xs text-slate-400 font-bold ml-1.5">
                   / {studentPersonalStats?.totalSessions ?? 20} Lectures
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium">Verified by Department RFID/Faculty Roster</p>
+              <p className="text-[11px] text-slate-500 font-medium">Verified by Department Lecture Roster</p>
             </div>
 
-            {/* Threshold Benchmark */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Academic Requirement</span>
-              <div className="my-2">
-                <span className="text-4xl font-black text-slate-900 font-display">75%</span>
-                <span className="text-xs text-amber-700 font-bold ml-1.5">Minimum Bar</span>
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs flex flex-col justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Academic Requirement</span>
+              <div className="my-3">
+                <span className="text-4xl font-extrabold text-slate-900 font-mono">75%</span>
+                <span className="text-xs text-amber-600 font-bold ml-1.5 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                  Minimum Bar
+                </span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium">Students below 75% require HOD condonation</p>
             </div>
-
           </div>
 
-          {/* Subject-Wise Breakdown Table */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-xs">
             <div className="p-5 border-b border-slate-100">
               <h2 className="text-sm font-bold text-slate-900">Course-Wise Attendance Breakdown</h2>
-              <p className="text-xs text-slate-500">Continuous tracking across all theoretical courses and laboratory practicals.</p>
-            </div>
-
-            {/* Course Search & Filter Bar */}
-            <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  value={courseSearch}
-                  onChange={(e) => setCourseSearch(e.target.value)}
-                  placeholder="Search course code or title..."
-                  className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 font-medium"
-                />
-                {courseSearch && (
-                  <button
-                    onClick={() => setCourseSearch('')}
-                    className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <div className="flex bg-white p-0.5 rounded-xl border border-slate-200 shadow-2xs">
-                  <button
-                    onClick={() => setCourseFilter('all')}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-                      courseFilter === 'all'
-                        ? 'bg-slate-900 text-white'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    All Courses
-                  </button>
-                  <button
-                    onClick={() => setCourseFilter('eligible')}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-                      courseFilter === 'eligible'
-                        ? 'bg-emerald-600 text-white'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Eligible (≥75%)
-                  </button>
-                  <button
-                    onClick={() => setCourseFilter('shortage')}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-                      courseFilter === 'shortage'
-                        ? 'bg-rose-600 text-white'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Shortage (&lt;75%)
-                  </button>
-                </div>
-
-                {(courseSearch || courseFilter !== 'all') && (
-                  <button
-                    onClick={() => {
-                      setCourseSearch('');
-                      setCourseFilter('all');
-                    }}
-                    className="px-2 py-1 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 font-bold flex items-center space-x-1"
-                  >
-                    <X className="w-3 h-3" />
-                    <span>Reset</span>
-                  </button>
-                )}
-              </div>
+              <p className="text-xs text-slate-500 mt-0.5">Continuous tracking across all theoretical courses and laboratory practicals.</p>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold">
+                  <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-500 font-semibold">
                     <th className="p-3.5 pl-5">Course Code</th>
                     <th className="p-3.5">Subject Title</th>
                     <th className="p-3.5 text-center">Attended / Total</th>
@@ -357,36 +359,9 @@ export default function AttendanceView({ currentUser, dataset }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {((studentPersonalStats?.subjectBreakdown || []).filter((sub) => {
-                    if (courseFilter === 'eligible' && sub.percentage < 75) return false;
-                    if (courseFilter === 'shortage' && sub.percentage >= 75) return false;
-                    if (courseSearch.trim()) {
-                      const q = courseSearch.toLowerCase().trim();
-                      const codeMatch = sub.subjectCode?.toLowerCase().includes(q);
-                      const nameMatch = sub.subjectName?.toLowerCase().includes(q);
-                      if (!codeMatch && !nameMatch) return false;
-                    }
-                    return true;
-                  })).length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="p-8 text-center text-slate-400">
-                        No courses found matching criteria.
-                      </td>
-                    </tr>
-                  ) : (studentPersonalStats?.subjectBreakdown || []).filter((sub) => {
-                    if (courseFilter === 'eligible' && sub.percentage < 75) return false;
-                    if (courseFilter === 'shortage' && sub.percentage >= 75) return false;
-                    if (courseSearch.trim()) {
-                      const q = courseSearch.toLowerCase().trim();
-                      const codeMatch = sub.subjectCode?.toLowerCase().includes(q);
-                      const nameMatch = sub.subjectName?.toLowerCase().includes(q);
-                      if (!codeMatch && !nameMatch) return false;
-                    }
-                    return true;
-                  }).map((sub, idx) => (
-
-                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="p-3.5 pl-5 font-mono font-bold text-indigo-700">{sub.subjectCode}</td>
+                  {(studentPersonalStats?.subjectBreakdown || []).map((sub, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="p-3.5 pl-5 font-mono font-bold text-blue-600">{sub.subjectCode}</td>
                       <td className="p-3.5 font-bold text-slate-900">{sub.subjectName}</td>
                       <td className="p-3.5 text-center font-semibold text-slate-700">
                         {sub.attended} / {sub.total}
@@ -395,10 +370,10 @@ export default function AttendanceView({ currentUser, dataset }) {
                         <span className="font-extrabold text-sm text-slate-900">{sub.percentage}%</span>
                       </td>
                       <td className="p-3.5 text-center">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                           sub.percentage >= 75
-                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                            : 'bg-rose-50 text-rose-800 border border-rose-200'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200'
                         }`}>
                           {sub.percentage >= 75 ? '✓ Exam Eligible' : '⚠ Shortage'}
                         </span>
@@ -409,7 +384,6 @@ export default function AttendanceView({ currentUser, dataset }) {
               </table>
             </div>
           </div>
-
         </div>
       )}
 
@@ -417,19 +391,94 @@ export default function AttendanceView({ currentUser, dataset }) {
       {!isStudent && activeSubTab === 'mark' && (
         <div className="space-y-6">
           
-          {/* Session Selector Card */}
-          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-2xs space-y-4">
-            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Select Class & Lecture Slot</h2>
+          {/* Section 1: Today's Assigned Teaching Periods & Substitutions */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-100 gap-2">
+              <div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                  Today's Teaching Schedule & Confirmed Substitutions
+                </span>
+                <p className="text-xs text-slate-500 font-medium">
+                  Instructor: <strong className="text-slate-900">{currentUser?.name}</strong> • Select an assigned period to record attendance:
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-slate-400 font-medium">Session Date:</span>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="text-xs font-bold rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-xs"
+                />
+              </div>
+            </div>
+
+            {assignedPeriods.length === 0 ? (
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs text-slate-500 font-medium">
+                No scheduled periods found for this date under your faculty profile. You may select parameters manually below.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {assignedPeriods.map((p) => {
+                  const isSelected = selectedPeriod === p.period && String(selectedBatchId) === String(p.batchId);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleSelectPeriodCard(p)}
+                      className={`text-left p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50/70 ring-2 ring-blue-500/20 shadow-xs'
+                          : 'border-slate-200/80 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1.5">
+                        <span className={`text-xs font-black font-mono px-2 py-0.5 rounded-md ${
+                          isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          Period {p.period}
+                        </span>
+                        {p.isSubstitution ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                            ★ Substitute
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-slate-400">
+                            {p.room || 'CR-101'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-bold text-xs text-slate-900 line-clamp-1">{p.subjectName}</div>
+                      <div className="text-[11px] text-slate-500 flex items-center justify-between mt-1">
+                        <span>{p.batchName}</span>
+                        {p.isAlreadyMarked ? (
+                          <span className="text-[10px] font-bold text-emerald-600">✓ Marked</span>
+                        ) : (
+                          <span className="text-[10px] font-medium text-slate-400">Pending</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Lecture Slot Parameters Selection Card */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                Active Slot Parameters {isSubstitutePeriod && <span className="text-purple-600 ml-1 font-bold">(Official Substitution Active)</span>}
+              </span>
+            </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              
-              {/* Batch Selector */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Student Batch / Section</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Student Batch / Section</label>
                 <select
                   value={selectedBatchId}
                   onChange={(e) => setSelectedBatchId(e.target.value)}
-                  className="w-full text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white p-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs"
                 >
                   {(dataset?.batches || []).map(b => (
                     <option key={b._id} value={b._id}>
@@ -439,13 +488,12 @@ export default function AttendanceView({ currentUser, dataset }) {
                 </select>
               </div>
 
-              {/* Subject Selector */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Course / Subject</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Course / Subject</label>
                 <select
                   value={selectedSubjectId}
                   onChange={(e) => setSelectedSubjectId(e.target.value)}
-                  className="w-full text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white p-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs"
                 >
                   {(dataset?.subjects || []).map(s => (
                     <option key={s._id} value={s._id}>
@@ -455,84 +503,90 @@ export default function AttendanceView({ currentUser, dataset }) {
                 </select>
               </div>
 
-              {/* Date Selector */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Date</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Date</label>
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white p-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs"
                 />
               </div>
 
-              {/* Period Slot Selector */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Period Slot</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Period Slot</label>
                 <select
                   value={selectedPeriod}
                   onChange={(e) => setSelectedPeriod(Number(e.target.value))}
-                  className="w-full text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-slate-900 focus:ring-2 focus:ring-indigo-500"
+                  className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white p-2.5 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs"
                 >
                   {[1, 2, 3, 5, 6, 7].map(p => (
                     <option key={p} value={p}>
-                      Period {p} {p === 1 ? '(09:00 - 09:50)' : p === 2 ? '(09:50 - 10:40)' : p === 3 ? '(10:40 - 11:30)' : p === 5 ? '(12:20 - 01:10)' : p === 6 ? '(01:10 - 02:00)' : '(02:00 - 02:50)'}
+                      Period {p}
                     </option>
                   ))}
                 </select>
               </div>
-
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-              <span className="text-xs text-slate-500 font-medium">
-                Instructor: <strong className="text-slate-900">{currentUser.name}</strong>
-              </span>
-              <button
-                type="button"
-                onClick={handleMarkAllPresent}
-                className="text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl border border-indigo-200/60 transition-all"
-              >
-                ✓ Mark All Present
-              </button>
+            {/* Quick Session Stats Bar */}
+            <div className="flex flex-wrap items-center justify-between pt-3 border-t border-slate-100 gap-3">
+              <div className="flex items-center space-x-3 text-xs">
+                <span className="font-semibold text-slate-600">Total Enrolled: <strong className="text-slate-900">{batchStudents.length}</strong></span>
+                <span className="text-slate-300">•</span>
+                <span className="font-semibold text-emerald-600">Present: <strong>{presentCount}</strong></span>
+                <span className="text-slate-300">•</span>
+                <span className="font-semibold text-indigo-600">On-Duty: <strong>{onDutyCount}</strong></span>
+                <span className="text-slate-300">•</span>
+                <span className="font-semibold text-rose-600">Absent: <strong>{absentCount}</strong></span>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleMarkAllPresent}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200"
+                >
+                  ✓ Mark All Present
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Success Banner */}
           {saveSuccessMsg && (
             <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center space-x-2 animate-in fade-in">
-              <Check className="w-4 h-4 text-emerald-600" />
+              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>{saveSuccessMsg}</span>
             </div>
           )}
 
-          {/* Student Roster Marking Table */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+          {/* Student Roster Table Card */}
+          <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-xs">
+            <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">Student Attendance Sheet ({batchStudents.length} Students)</h3>
-                <p className="text-xs text-slate-500">Toggle student status between Present, Absent, and Late for this lecture session.</p>
+                <p className="text-xs text-slate-500 mt-0.5">Toggle student status between Present, Late, and Absent for this lecture session.</p>
               </div>
               <button
                 onClick={handleSubmitAttendance}
                 disabled={isLoading || batchStudents.length === 0}
-                className="px-4 py-2 bg-gradient-to-r from-blue-700 via-indigo-700 to-indigo-800 hover:from-blue-800 hover:to-indigo-900 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-950/20 flex items-center space-x-1.5 transition-all active:scale-95 disabled:opacity-50"
+                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-xs transition-all shrink-0 disabled:opacity-50"
               >
                 <Save className="w-3.5 h-3.5" />
                 <span>{isLoading ? 'Saving...' : 'Submit Attendance'}</span>
               </button>
             </div>
 
-            {/* Faculty Roster Search & Filter Toolbar */}
-            <div className="p-3 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            {/* Table Toolbar */}
+            <div className="p-3 bg-slate-50/70 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
               <div className="relative flex-1 max-w-sm">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
                   value={rosterSearch}
                   onChange={(e) => setRosterSearch(e.target.value)}
-                  placeholder="Search student name or roll number..."
-                  className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 font-medium"
+                  placeholder="Filter student name or roll number..."
+                  className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
                 />
                 {rosterSearch && (
                   <button
@@ -545,121 +599,69 @@ export default function AttendanceView({ currentUser, dataset }) {
               </div>
 
               <div className="flex items-center space-x-2">
-                <div className="flex bg-white p-0.5 rounded-xl border border-slate-200 shadow-2xs">
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter('all')}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-                      statusFilter === 'all'
-                        ? 'bg-slate-900 text-white'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    All ({batchStudents.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter('Present')}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-                      statusFilter === 'Present'
-                        ? 'bg-emerald-600 text-white'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Present ({batchStudents.filter(s => (studentStatuses[s.studentId] || 'Present') === 'Present').length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter('Late')}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-                      statusFilter === 'Late'
-                        ? 'bg-amber-600 text-white'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Late ({batchStudents.filter(s => studentStatuses[s.studentId] === 'Late').length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStatusFilter('Absent')}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-                      statusFilter === 'Absent'
-                        ? 'bg-rose-600 text-white'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Absent ({batchStudents.filter(s => studentStatuses[s.studentId] === 'Absent').length})
-                  </button>
+                <div className="flex bg-white p-0.5 rounded-xl border border-slate-200 text-xs">
+                  {['all', 'Present', 'On-Duty', 'Absent'].map(st => (
+                    <button
+                      key={st}
+                      onClick={() => setStatusFilter(st)}
+                      className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
+                        statusFilter === st
+                          ? 'bg-blue-600 text-white font-bold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {st === 'all' ? 'All' : st}
+                    </button>
+                  ))}
                 </div>
-
-                {(rosterSearch || statusFilter !== 'all') && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRosterSearch('');
-                      setStatusFilter('all');
-                    }}
-                    className="px-2 py-1 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 font-bold flex items-center space-x-1"
-                  >
-                    <X className="w-3 h-3" />
-                    <span>Reset</span>
-                  </button>
-                )}
+                <span className="text-[11px] text-slate-400 font-medium">
+                  Showing {filteredBatchStudents.length} of {batchStudents.length}
+                </span>
               </div>
+            </div>
+
+            {/* Approved Leave Policy Banner */}
+            <div className="px-5 py-2.5 bg-amber-50/70 border-b border-amber-200/50 flex items-center justify-between text-[11px] text-amber-900 font-medium">
+              <span>💡 <strong>Academic Rule:</strong> Approved student leave applications do not automatically grant present status. Mark as 'Absent' or 'On-Duty' per departmental guidelines.</span>
+              <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md font-bold">UGC Bar: 75%</span>
             </div>
 
             {batchStudents.length === 0 ? (
               <div className="p-12 text-center text-slate-400 text-xs">
                 <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                No students enrolled in this section yet. The Class Coordinator can add students from the Manage Students panel.
+                No students enrolled in this section yet.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold">
+                    <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-500 font-semibold">
                       <th className="p-3.5 pl-5 w-16">#</th>
-                      <th className="p-3.5 w-32">Roll Number</th>
-                      <th className="p-3.5">Student Name</th>
+                      <th className="p-3.5 w-36">Roll Number</th>
+                      <th className="p-3.5">Student Details</th>
                       <th className="p-3.5 text-center">Historical %</th>
                       <th className="p-3.5 text-center w-72">Status for This Session</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {((batchStudents.filter((std) => {
+                    {filteredBatchStudents.map((std, idx) => {
                       const curStatus = studentStatuses[std.studentId] || 'Present';
-                      if (statusFilter !== 'all' && curStatus !== statusFilter) return false;
-                      if (rosterSearch.trim()) {
-                        const q = rosterSearch.toLowerCase().trim();
-                        const matchName = std.name?.toLowerCase().includes(q);
-                        const matchRoll = std.rollNo?.toLowerCase().includes(q);
-                        if (!matchName && !matchRoll) return false;
-                      }
-                      return true;
-                    }))).length === 0 ? (
-                      <tr>
-                        <td colSpan="5" className="p-8 text-center text-slate-400">
-                          No students match the search and status filter.
-                        </td>
-                      </tr>
-                    ) : (batchStudents.filter((std) => {
-                      const curStatus = studentStatuses[std.studentId] || 'Present';
-                      if (statusFilter !== 'all' && curStatus !== statusFilter) return false;
-                      if (rosterSearch.trim()) {
-                        const q = rosterSearch.toLowerCase().trim();
-                        const matchName = std.name?.toLowerCase().includes(q);
-                        const matchRoll = std.rollNo?.toLowerCase().includes(q);
-                        if (!matchName && !matchRoll) return false;
-                      }
-                      return true;
-                    })).map((std, idx) => {
-
-                      const curStatus = studentStatuses[std.studentId] || 'Present';
+                      const approvedLeave = approvedLeavesMap[std.studentId];
                       return (
                         <tr key={std.studentId} className="hover:bg-slate-50/60 transition-colors">
                           <td className="p-3.5 pl-5 font-mono text-slate-400">{idx + 1}</td>
-                          <td className="p-3.5 font-mono font-bold text-indigo-700">{std.rollNo}</td>
-                          <td className="p-3.5 font-bold text-slate-900">{std.name}</td>
+                          <td className="p-3.5 font-mono font-bold text-blue-600">{std.rollNo}</td>
+                          <td className="p-3.5">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-bold text-slate-900">{std.name}</span>
+                              {approvedLeave && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                  🏖 Approved Leave ({approvedLeave.leaveType || 'General'})
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-medium">{std.email}</div>
+                          </td>
                           <td className="p-3.5 text-center">
                             <span className="font-extrabold text-slate-900">{std.percentage}%</span>
                           </td>
@@ -668,7 +670,7 @@ export default function AttendanceView({ currentUser, dataset }) {
                               <button
                                 type="button"
                                 onClick={() => handleStatusChange(std.studentId, 'Present')}
-                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                                className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
                                   curStatus === 'Present'
                                     ? 'bg-emerald-600 text-white shadow-2xs'
                                     : 'text-slate-600 hover:text-slate-900'
@@ -678,19 +680,19 @@ export default function AttendanceView({ currentUser, dataset }) {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleStatusChange(std.studentId, 'Late')}
-                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                                  curStatus === 'Late'
-                                    ? 'bg-amber-500 text-white shadow-2xs'
+                                onClick={() => handleStatusChange(std.studentId, 'On-Duty')}
+                                className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                                  curStatus === 'On-Duty'
+                                    ? 'bg-indigo-600 text-white shadow-2xs'
                                     : 'text-slate-600 hover:text-slate-900'
                                 }`}
                               >
-                                Late
+                                On-Duty
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleStatusChange(std.studentId, 'Absent')}
-                                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                                className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
                                   curStatus === 'Absent'
                                     ? 'bg-rose-600 text-white shadow-2xs'
                                     : 'text-slate-600 hover:text-slate-900'
@@ -707,59 +709,56 @@ export default function AttendanceView({ currentUser, dataset }) {
                 </table>
               </div>
             )}
-
           </div>
-
         </div>
       )}
 
-      {/* FACULTY / HOD VIEW: Historical Summary */}
+      {/* SUMMARY VIEW */}
       {!isStudent && activeSubTab === 'summary' && (
         <div className="space-y-6">
-          
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Average Attendance</span>
-              <div className="my-2 text-4xl font-black text-slate-900 font-display">
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Average Attendance</span>
+              <div className="my-2 text-4xl font-extrabold text-slate-900 font-mono">
                 {attendanceSummary?.averageDepartmentAttendance ?? 88}%
               </div>
-              <p className="text-[11px] text-emerald-600 font-semibold">Across all active lectures and computer laboratories</p>
+              <p className="text-[11px] text-emerald-600 font-medium">Across all active lectures and computer laboratories</p>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sessions Recorded</span>
-              <div className="my-2 text-4xl font-black text-indigo-700 font-display">
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sessions Recorded</span>
+              <div className="my-2 text-4xl font-extrabold text-blue-600 font-mono">
                 {attendanceSummary?.totalSessionsMarked ?? 3}
               </div>
               <p className="text-[11px] text-slate-400 font-medium">Logged in current academic term</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-xs">
             <div className="p-5 border-b border-slate-100">
               <h3 className="text-sm font-bold text-slate-900">Recent Attendance Logs</h3>
-              <p className="text-xs text-slate-500">Historical sessions recorded by course instructors.</p>
+              <p className="text-xs text-slate-500 mt-0.5">Historical sessions recorded by course instructors.</p>
             </div>
             <div className="divide-y divide-slate-100 text-xs">
               {(attendanceSummary?.sessions || []).map(sess => (
-                <div key={sess.id} className="p-4 hover:bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div key={sess.id} className="p-4 hover:bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors">
                   <div>
                     <div className="flex items-center space-x-2">
                       <span className="font-bold text-slate-900">{sess.subjectName} ({sess.subjectCode})</span>
-                      <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold text-[10px]">
+                      <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold text-[10px] border border-blue-100">
                         Period {sess.period}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
+                    <p className="text-[11px] text-slate-500 mt-1">
                       Marked by {sess.markedByFacultyName} • {sess.date} ({sess.day})
                     </p>
                   </div>
                   <div className="flex items-center space-x-2 text-[11px] font-semibold text-slate-700">
-                    <span className="text-emerald-700 font-bold">
+                    <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-bold border border-emerald-100">
                       {sess.records.filter(r => r.status === 'Present' || r.status === 'Late').length} Present
                     </span>
                     <span className="text-slate-300">/</span>
-                    <span className="text-rose-700 font-bold">
+                    <span className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md font-bold border border-rose-100">
                       {sess.records.filter(r => r.status === 'Absent').length} Absent
                     </span>
                   </div>
@@ -767,7 +766,6 @@ export default function AttendanceView({ currentUser, dataset }) {
               ))}
             </div>
           </div>
-
         </div>
       )}
 

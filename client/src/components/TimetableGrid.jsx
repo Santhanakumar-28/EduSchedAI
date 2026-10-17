@@ -5,23 +5,22 @@ import {
   GraduationCap, 
   ArrowLeftRight, 
   Clock, 
-  Coffee,
+  Coffee, 
   CheckCircle2, 
-  Search,
-  Filter,
-  Sparkles,
-  Info,
-  Lock,
-  UserCheck,
-  X
+  Search, 
+  Filter, 
+  Sparkles, 
+  Info, 
+  X 
 } from 'lucide-react';
+import { Button } from './ui/button';
 
 export default function TimetableGrid({ 
   schedule, 
   dataset, 
-  onSlotSwapClick,
-  activeRole,
-  currentUser
+  onSlotSwapClick, 
+  activeRole, 
+  currentUser 
 }) {
   const role = currentUser?.role || activeRole || 'HOD';
   const isFaculty = role === 'Faculty';
@@ -49,7 +48,6 @@ export default function TimetableGrid({
       if (filterType === 'faculty') {
         setSelectedFilterId(currentUser?.facultyId || 'fac_2');
       } else if (filterType === 'batch') {
-        // Default to their coordinated batch or first batch
         setSelectedFilterId(currentUser?.coordinatedBatchId || dataset?.batches?.[0]?._id || 'batch_1');
       }
     } else if (isStudent) {
@@ -58,7 +56,7 @@ export default function TimetableGrid({
     }
   }, [filterType, currentUser?.facultyId, currentUser?.batchId, isFaculty, isStudent]);
 
-  // Search & Secondary Filter States (Available to All Roles)
+  // Search & Secondary Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [sessionTypeFilter, setSessionTypeFilter] = useState('all'); // 'all', 'theory', 'lab'
   const [dayFilter, setDayFilter] = useState('all'); // 'all', 'Monday', 'Tuesday', ...
@@ -117,7 +115,7 @@ export default function TimetableGrid({
     1: '09:00 - 09:50',
     2: '09:50 - 10:40',
     3: '10:40 - 11:30',
-    4: '11:30 - 12:20', // Lunch
+    4: '11:30 - 12:20',
     5: '12:20 - 01:10',
     6: '01:10 - 02:00',
     7: '02:00 - 02:50'
@@ -128,28 +126,27 @@ export default function TimetableGrid({
     : null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 animate-in fade-in duration-300">
       
       {/* Control & Filter Header */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         
         {/* Filter Type Tabs */}
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold text-slate-500 flex items-center mr-1">
             <Filter className="w-3.5 h-3.5 mr-1 text-slate-400" /> View by:
           </span>
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+          <div className="flex bg-slate-100 p-1 rounded-xl text-xs">
             
-            {/* Faculty: Has "My Teaching Schedule" button */}
             {isFaculty && (
               <button
                 onClick={() => {
                   setFilterType('faculty');
                   setSelectedFilterId(currentUser?.facultyId || 'fac_2');
                 }}
-                className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
                   filterType === 'faculty' 
-                    ? 'bg-white text-indigo-700 shadow-xs font-bold' 
+                    ? 'bg-white text-blue-600 shadow-xs' 
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -157,16 +154,15 @@ export default function TimetableGrid({
               </button>
             )}
 
-            {/* HOD: Has general "Faculty Member" tab with dropdown */}
             {isHOD && (
               <button
                 onClick={() => {
                   setFilterType('faculty');
                   setSelectedFilterId(dataset?.faculty?.[0]?._id || 'fac_1');
                 }}
-                className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
                   filterType === 'faculty' 
-                    ? 'bg-white text-indigo-700 shadow-xs font-bold' 
+                    ? 'bg-white text-blue-600 shadow-xs' 
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -174,7 +170,6 @@ export default function TimetableGrid({
               </button>
             )}
 
-            {/* Student Batch Tab: accessible to HOD and Faculty (so faculty can visit student schedule) */}
             {(!isStudent) && (
               <button
                 onClick={() => {
@@ -185,9 +180,9 @@ export default function TimetableGrid({
                       : dataset?.batches?.[0]?._id || 'batch_1'
                   );
                 }}
-                className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
                   filterType === 'batch' 
-                    ? 'bg-white text-indigo-700 shadow-xs font-bold' 
+                    ? 'bg-white text-blue-600 shadow-xs' 
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -195,16 +190,15 @@ export default function TimetableGrid({
               </button>
             )}
 
-            {/* Classroom / Lab Tab: HOD only */}
             {isHOD && (
               <button
                 onClick={() => {
                   setFilterType('room');
                   setSelectedFilterId(dataset?.rooms?.[0]?._id || 'room_1');
                 }}
-                className={`px-3 py-1 rounded-lg font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
                   filterType === 'room' 
-                    ? 'bg-white text-indigo-700 shadow-xs font-bold' 
+                    ? 'bg-white text-blue-600 shadow-xs' 
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -212,9 +206,8 @@ export default function TimetableGrid({
               </button>
             )}
 
-            {/* If Student: Static Pill */}
             {isStudent && (
-              <div className="px-3 py-1 font-bold text-indigo-700 bg-white rounded-lg shadow-xs">
+              <div className="px-3 py-1.5 font-bold text-blue-600 bg-white rounded-lg shadow-xs">
                 🎓 My Enrolled Section ({currentUser?.enrolledBatch?.name || 'CSE Section A'})
               </div>
             )}
@@ -222,14 +215,12 @@ export default function TimetableGrid({
           </div>
         </div>
 
-        {/* Dynamic Selector Dropdown / Banner */}
+        {/* Dynamic Selector Dropdown */}
         <div className="flex items-center space-x-3">
-          
-          {/* 1. FACULTY VIEWING HER OWN SCHEDULE: NO OPTION TO BROWSE OTHER TEACHERS */}
           {isFaculty && filterType === 'faculty' && (
-            <div className="flex items-center space-x-2 bg-indigo-50/70 border border-indigo-200 px-3 py-1.5 rounded-xl text-xs">
+            <div className="flex items-center space-x-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span className="font-bold text-indigo-950">
+              <span className="font-bold text-blue-950">
                 {loggedInFacultyObj?.name || currentUser.name}
               </span>
               <span className="text-slate-500 font-medium">
@@ -238,7 +229,6 @@ export default function TimetableGrid({
             </div>
           )}
 
-          {/* 2. FACULTY VISITING STUDENT BATCH TIMETABLE: CAN SELECT SECTION */}
           {isFaculty && filterType === 'batch' && (
             <div className="flex items-center space-x-2">
               <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">
@@ -247,7 +237,7 @@ export default function TimetableGrid({
               <select
                 value={selectedFilterId}
                 onChange={(e) => setSelectedFilterId(e.target.value)}
-                className="text-xs font-bold bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-slate-800 focus:ring-2 focus:ring-indigo-500 shadow-xs"
+                className="text-xs font-bold bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-xs"
               >
                 {dataset?.batches?.map((b) => (
                   <option key={b._id} value={b._id}>
@@ -258,7 +248,6 @@ export default function TimetableGrid({
             </div>
           )}
 
-          {/* 3. HOD VIEW: FULL UNRESTRICTED DROPDOWN FOR ANY BATCH, INSTRUCTOR, OR ROOM */}
           {isHOD && (
             <div className="flex items-center space-x-2">
               <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">
@@ -267,7 +256,7 @@ export default function TimetableGrid({
               <select
                 value={selectedFilterId}
                 onChange={(e) => setSelectedFilterId(e.target.value)}
-                className="text-xs font-semibold bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:ring-2 focus:ring-indigo-500 shadow-xs"
+                className="text-xs font-semibold bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-xs"
               >
                 {filterType === 'batch' &&
                   dataset?.batches?.map((b) => (
@@ -290,15 +279,14 @@ export default function TimetableGrid({
               </select>
             </div>
           )}
-
         </div>
 
       </div>
 
       {/* Search & Dynamic Filter Toolbar */}
-      <div className="bg-white p-3 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+      <div className="bg-white rounded-2xl border border-slate-100 p-3.5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
         
-        {/* Left: Search Input */}
+        {/* Search Input */}
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
@@ -306,28 +294,26 @@ export default function TimetableGrid({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search subject code (e.g. CS401), title, faculty, or room..."
-            className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium"
+            className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-md hover:bg-slate-100"
+              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded-md"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
-        {/* Right: Filters for Session Type & Day */}
+        {/* Filters for Session Type & Day */}
         <div className="flex flex-wrap items-center gap-2">
-          
-          {/* Session Type Filter */}
           <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
             <button
               onClick={() => setSessionTypeFilter('all')}
-              className={`px-2.5 py-1.5 rounded-lg font-semibold transition-all ${
+              className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
                 sessionTypeFilter === 'all'
-                  ? 'bg-white text-indigo-700 shadow-2xs font-bold'
+                  ? 'bg-white text-blue-600 shadow-2xs font-bold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -335,9 +321,9 @@ export default function TimetableGrid({
             </button>
             <button
               onClick={() => setSessionTypeFilter('theory')}
-              className={`px-2.5 py-1.5 rounded-lg font-semibold transition-all ${
+              className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
                 sessionTypeFilter === 'theory'
-                  ? 'bg-white text-indigo-700 shadow-2xs font-bold'
+                  ? 'bg-white text-blue-600 shadow-2xs font-bold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -345,9 +331,9 @@ export default function TimetableGrid({
             </button>
             <button
               onClick={() => setSessionTypeFilter('lab')}
-              className={`px-2.5 py-1.5 rounded-lg font-semibold transition-all ${
+              className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
                 sessionTypeFilter === 'lab'
-                  ? 'bg-white text-emerald-700 shadow-2xs font-bold'
+                  ? 'bg-white text-emerald-600 shadow-2xs font-bold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -355,11 +341,10 @@ export default function TimetableGrid({
             </button>
           </div>
 
-          {/* Day Filter */}
           <select
             value={dayFilter}
             onChange={(e) => setDayFilter(e.target.value)}
-            className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:ring-2 focus:ring-indigo-500"
+            className="text-xs font-semibold bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           >
             <option value="all">📅 All Days</option>
             {days.map((d) => (
@@ -367,7 +352,6 @@ export default function TimetableGrid({
             ))}
           </select>
 
-          {/* Reset Filters Button if Active */}
           {isFilterActive && (
             <button
               onClick={() => {
@@ -375,35 +359,33 @@ export default function TimetableGrid({
                 setSessionTypeFilter('all');
                 setDayFilter('all');
               }}
-              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-xl text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 font-bold transition-all text-xs"
+              className="h-8 px-2.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-bold flex items-center transition-colors"
             >
-              <X className="w-3.5 h-3.5" />
-              <span>Clear Filter</span>
+              <X className="w-3.5 h-3.5 mr-1" /> Clear
             </button>
           )}
-
         </div>
 
       </div>
 
-      {/* Filter Result Notification Strip if Filter Active */}
+      {/* Filter Result Notification Strip */}
       {isFilterActive && (
-        <div className="flex items-center justify-between px-3 py-2 bg-indigo-50/70 border border-indigo-200/80 rounded-xl text-xs text-indigo-900">
+        <div className="flex items-center justify-between px-3.5 py-2 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 animate-in fade-in">
           <div className="flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse"></span>
+            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
             <span>
-              Search & Filter Active: <strong>{matchingSlotsCount}</strong> sessions highlighted
+              Filter Active: <strong>{matchingSlotsCount}</strong> sessions highlighted
             </span>
           </div>
-          <span className="text-[11px] text-indigo-700 font-medium">Non-matching slots are dimmed for high focus</span>
+          <span className="text-[11px] text-blue-700 font-medium">Non-matching slots dimmed</span>
         </div>
       )}
 
       {/* Legend & Stats Bar */}
-      <div className="flex flex-wrap items-center justify-between text-xs px-1 text-slate-600 gap-2">
+      <div className="flex flex-wrap items-center justify-between text-xs px-1 text-slate-500 gap-2 font-medium">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-1.5">
-            <span className="w-3 h-3 rounded-md bg-indigo-50 border border-indigo-300"></span>
+            <span className="w-3 h-3 rounded-md bg-blue-50 border border-blue-300"></span>
             <span>Theory Lecture (1 hr)</span>
           </div>
           <div className="flex items-center space-x-1.5">
@@ -418,21 +400,21 @@ export default function TimetableGrid({
         
         {isHOD && (
           <div className="text-[11px] text-slate-500 italic flex items-center">
-            <Info className="w-3.5 h-3.5 mr-1 text-indigo-500" />
+            <Info className="w-3.5 h-3.5 mr-1 text-blue-600" />
             Click any class card to swap or reassign slot with real-time clash verification.
           </div>
         )}
       </div>
 
-      {/* Master Timetable Calendar Grid */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm overflow-hidden">
+      {/* Master Timetable Grid */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left min-w-[1100px]">
             
-            {/* Table Header: Periods with Academic Navy Styling */}
+            {/* Table Header */}
             <thead>
-              <tr className="bg-slate-900 text-white text-xs font-semibold">
-                <th className="p-4 w-32 border-r border-slate-800 text-center font-display uppercase tracking-wider text-[11px] text-slate-300">
+              <tr className="bg-slate-800 text-white text-xs font-semibold">
+                <th className="p-4 w-32 border-r border-slate-700 text-center font-bold uppercase tracking-wider text-[11px] text-slate-200">
                   Day / Period
                 </th>
                 {Array.from({ length: periodsCount }, (_, i) => i + 1).map((p) => {
@@ -440,7 +422,7 @@ export default function TimetableGrid({
                   return (
                     <th
                       key={p}
-                      className={`p-3.5 text-center border-r border-slate-800 ${
+                      className={`p-3.5 text-center border-r border-slate-700 ${
                         isLunch 
                           ? 'bg-amber-600/90 text-white w-28' 
                           : 'w-48'
@@ -456,7 +438,7 @@ export default function TimetableGrid({
                           <span>Period {p}</span>
                         )}
                       </div>
-                      <div className={`text-[10px] font-mono mt-0.5 ${isLunch ? 'text-amber-100' : 'text-slate-400'}`}>
+                      <div className={`text-[10px] font-mono mt-0.5 ${isLunch ? 'text-amber-100' : 'text-slate-300'}`}>
                         {periodTimeMap[p] || `P${p}`}
                       </div>
                     </th>
@@ -465,15 +447,15 @@ export default function TimetableGrid({
               </tr>
             </thead>
 
-            {/* Table Body: Days & Slots */}
-            <tbody className="divide-y divide-slate-200/80 text-xs">
+            {/* Table Body */}
+            <tbody className="divide-y divide-slate-100 text-xs">
               {days.map((day) => (
                 <tr key={day} className="hover:bg-slate-50/50 transition-colors">
                   
                   {/* Day Label Column */}
-                  <td className="p-4 font-bold text-slate-900 border-r border-slate-200 bg-slate-50/80 align-middle text-center">
-                    <div className="text-sm font-extrabold font-display text-slate-900">{day}</div>
-                    <div className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-indigo-700 border border-slate-200/80 mt-1 shadow-2xs">
+                  <td className="p-4 font-bold text-slate-800 border-r border-slate-200 bg-slate-50/80 align-middle text-center">
+                    <div className="text-sm font-bold">{day}</div>
+                    <div className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-blue-600 border border-slate-200 mt-1 shadow-2xs">
                       {filteredSchedule.filter((s) => s.day === day).length} {filterType === 'faculty' ? 'Classes' : 'Lectures'}
                     </div>
                   </td>
@@ -484,25 +466,24 @@ export default function TimetableGrid({
                       return (
                         <td
                           key={p}
-                          className="p-2 border-r border-slate-200 bg-amber-50/30 text-center align-middle"
+                          className="p-2 border-r border-slate-200 bg-amber-50/40 text-center align-middle"
                         >
-                          <div className="py-6 flex flex-col items-center justify-center text-amber-900/80">
+                          <div className="py-6 flex flex-col items-center justify-center text-amber-900">
                             <Coffee className="w-4 h-4 mb-1 text-amber-600 opacity-90" />
                             <span className="text-[10px] font-extrabold uppercase tracking-wider">Break</span>
-                            <span className="text-[9px] font-mono text-amber-700/80">11:30 - 12:20</span>
+                            <span className="text-[9px] font-mono text-amber-700">11:30 - 12:20</span>
                           </div>
                         </td>
                       );
                     }
 
-                    // Find matching slot in filtered schedule
                     const match = filteredSchedule.find((s) => s.day === day && s.period === p);
 
                     if (!match) {
                       return (
                         <td
                           key={p}
-                          className="p-2 border-r border-slate-200 align-middle bg-slate-50/20"
+                          className="p-2 border-r border-slate-200 align-middle bg-slate-50/30"
                         >
                           <div className="h-28 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
                             <span className="text-[11px] font-medium">
@@ -531,15 +512,15 @@ export default function TimetableGrid({
                           } ${
                             isDimmed ? 'opacity-25 filter grayscale contrast-75 scale-[0.97]' : ''
                           } ${
-                            isHighlighted ? 'ring-2 ring-indigo-600 shadow-md scale-[1.02] bg-indigo-50/20' : ''
+                            isHighlighted ? 'ring-2 ring-blue-600 shadow-md scale-[1.02] bg-blue-50/40' : ''
                           } ${
                             isLab
-                              ? 'bg-gradient-to-br from-emerald-50/80 via-white to-emerald-50/40 border-emerald-300/80 text-emerald-950 shadow-2xs hover:border-emerald-400'
-                              : 'bg-white border-slate-200 hover:border-indigo-400 text-slate-900 shadow-2xs hover:shadow-xs'
+                              ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950 shadow-2xs'
+                              : 'bg-white border-slate-200 text-slate-800 shadow-2xs hover:border-blue-400'
                           }`}
                         >
                           <div>
-                            {/* Card Top: Code & Room Pill */}
+                            {/* Card Top */}
                             <div className="flex items-center justify-between">
                               <span className="font-extrabold text-xs tracking-tight text-slate-900 flex items-center">
                                 {subject?.code || 'SUBJ'}
@@ -554,19 +535,19 @@ export default function TimetableGrid({
                               </span>
                             </div>
 
-                            {/* Card Middle: Subject Title */}
+                            {/* Subject Title */}
                             <p className="text-xs font-bold text-slate-800 line-clamp-1 mt-1" title={subject?.name}>
                               {subject?.name || 'Subject Title'}
                             </p>
                           </div>
 
-                          {/* Card Bottom: Teacher & Actions */}
+                          {/* Card Bottom */}
                           <div className="flex items-center justify-between border-t border-slate-100 pt-1.5 text-[11px] text-slate-500">
                             {filterType === 'faculty' ? (
-                              <span className="font-extrabold text-indigo-700">{batch?.name}</span>
+                              <span className="font-extrabold text-blue-600">{batch?.name}</span>
                             ) : (
                               <span className="line-clamp-1 font-semibold text-slate-600 flex items-center" title={teacher?.name}>
-                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-1.5"></span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5"></span>
                                 {teacher?.name?.replace('Prof. ', '')?.replace('Dr. ', '') || 'Faculty'}
                               </span>
                             )}
@@ -574,7 +555,7 @@ export default function TimetableGrid({
                             {isHOD && (
                               <button
                                 title="Swap or Reassign Slot"
-                                className="p-1 rounded-lg text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
+                                className="p-1 rounded-lg text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition-colors"
                               >
                                 <ArrowLeftRight className="w-3.5 h-3.5" />
                               </button>

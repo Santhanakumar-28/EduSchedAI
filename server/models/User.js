@@ -3,6 +3,10 @@ const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema(
   {
+    _id: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => new mongoose.Types.ObjectId().toString()
+    },
     name: {
       type: String,
       required: [true, 'Please provide a name'],
@@ -12,19 +16,16 @@ const UserSchema = new mongoose.Schema(
     email: {
       type: String,
       required: [true, 'Please provide an email address'],
-      unique: true,
       lowercase: true,
-      trim: true,
-      match: [
-        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-        'Please provide a valid email address'
-      ]
+      trim: true
+    },
+    username: {
+      type: String,
+      trim: true
     },
     password: {
       type: String,
-      required: [true, 'Please provide a password'],
-      minlength: [6, 'Password must be at least 6 characters'],
-      select: false
+      required: [true, 'Please provide a password']
     },
     role: {
       type: String,
@@ -32,13 +33,41 @@ const UserSchema = new mongoose.Schema(
       default: 'Faculty'
     },
     departmentId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'Department',
       default: null
     },
     facultyRef: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'Faculty',
+      default: null
+    },
+    facultyId: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
+    cadre: {
+      type: String,
+      default: null
+    },
+    isClassCoordinator: {
+      type: Boolean,
+      default: false
+    },
+    coordinatedBatchId: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
+    rollNo: {
+      type: String,
+      default: null
+    },
+    batchId: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
+    addedByFacultyId: {
+      type: mongoose.Schema.Types.Mixed,
       default: null
     },
     isActive: {
@@ -51,19 +80,14 @@ const UserSchema = new mongoose.Schema(
   }
 );
 
-// Encrypt password using bcrypt before saving
-UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    return next();
-  }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
-
-// Match user entered password to hashed password in database
+// Match user entered password to hashed or stored password
 UserSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  if (this.password === enteredPassword) return true;
+  try {
+    return await bcrypt.compare(enteredPassword, this.password);
+  } catch (e) {
+    return false;
+  }
 };
 
 module.exports = mongoose.model('User', UserSchema);

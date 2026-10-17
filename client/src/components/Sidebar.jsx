@@ -1,92 +1,122 @@
 import React from 'react';
 import { 
   LayoutDashboard, 
+  Users, 
+  Building2, 
+  BookOpen, 
   CalendarDays, 
-  Cpu, 
-  Scale, 
-  UserMinus, 
-  FolderTree, 
-  Sparkles,
-  Layers,
-  BookOpen,
-  UserPlus,
+  TrendingUp, 
+  FileText, 
+  Settings,
   GraduationCap,
-  Users
+  Sparkles,
+  ClipboardList,
+  Megaphone,
+  UserCheck,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab, currentUser }) {
   const role = currentUser?.role || 'HOD';
   const isClassCoordinator = !!currentUser?.isClassCoordinator;
 
-  // Build navigation items dynamically according to logged-in user permissions
+  // Build role-specific navigation items
   let navItems = [];
+  let secondaryItems = [];
 
-  if (role === 'HOD') {
+  if (role === 'Admin') {
+    // 1. College Administrator / HR Navigation (Full Governance Scope)
     navItems = [
-      { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, badge: null },
-      { id: 'timetable', label: 'Master Timetable', icon: CalendarDays, badge: 'Active' },
-      { id: 'faculty_mgmt', label: 'Add / Manage Faculty', icon: UserPlus, badge: 'HOD Authority' },
-      { id: 'ai_studio', label: 'AI Scheduling Studio', icon: Cpu, badge: 'CSP+GA' },
-      { id: 'workload', label: 'Workload Balancer', icon: Scale, badge: 'Gini 0.23' },
-      { id: 'leaves', label: 'Leave & Substitution', icon: UserMinus, badge: 'Smart' },
-      { id: 'directory', label: 'Academic Resources', icon: FolderTree, badge: null },
+      { id: 'admin_dashboard', label: 'Admin Command Center', icon: LayoutDashboard },
+      { id: 'admin_departments', label: 'Departments & HODs', icon: Building2 },
+      { id: 'admin_users', label: 'User Directory & Status', icon: Users },
+      { id: 'admin_hod_leaves', label: 'HOD Leave Approvals', icon: ClipboardList },
+      { id: 'admin_audit', label: 'Security Audit Logs', icon: ShieldCheck },
+      { id: 'admin_settings', label: 'College Settings', icon: Settings },
+      { id: 'reports', label: 'Institutional Reports', icon: FileText }
+    ];
+
+    secondaryItems = [
+      { id: 'attendance', label: 'College Attendance', icon: UserCheck },
+      { id: 'notices', label: 'Notice Bulletin', icon: Megaphone }
+    ];
+  } else if (role === 'HOD') {
+    // 2. Department HOD Navigation (Department Scoped)
+    navItems = [
+      { id: 'dashboard', label: 'Department Dashboard', icon: LayoutDashboard },
+      { id: 'faculty_mgmt', label: 'Faculty Directory', icon: Users },
+      { id: 'departments', label: 'Department Overview', icon: Building2 },
+      { id: 'subjects', label: 'Subjects & Curriculum', icon: BookOpen },
+      { id: 'timetable', label: 'Master Timetable', icon: CalendarDays },
+      { id: 'workload', label: 'Workload Governance', icon: TrendingUp },
+      { id: 'reports', label: 'Department Reports', icon: FileText }
+    ];
+
+    secondaryItems = [
+      { id: 'attendance', label: 'Department Attendance', icon: UserCheck },
+      { id: 'leaves', label: 'Faculty Leave Approvals', icon: ClipboardList },
+      { id: 'notices', label: 'Notice Board', icon: Megaphone }
     ];
   } else if (role === 'Faculty') {
+    // 2. Faculty Member Navigation (differentiated for Class Coordinator)
     navItems = [
-      { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, badge: null },
-      { id: 'timetable', label: 'My Teaching Timetable', icon: CalendarDays, badge: 'Personal' },
+      { id: 'timetable', label: 'My Teaching Schedule', icon: CalendarDays },
+      { id: 'workload', label: 'My Workload & Hours', icon: TrendingUp },
     ];
 
-    // If this faculty member is a Class Coordinator, give them the Class Students management tab!
     if (isClassCoordinator) {
       navItems.push({
         id: 'class_students',
-        label: `Manage Class Students`,
-        icon: GraduationCap,
-        badge: 'Section In-Charge'
+        label: `My Section Students (${currentUser.coordinatedBatch?.name || 'Section'})`,
+        icon: GraduationCap
       });
+      secondaryItems = [
+        { id: 'attendance', label: 'Class Attendance', icon: UserCheck },
+        { id: 'leaves', label: 'Leave & Class Approvals', icon: ClipboardList },
+        { id: 'notices', label: 'Notice Board', icon: Megaphone },
+        { id: 'reports', label: 'Class Reports', icon: FileText }
+      ];
+    } else {
+      secondaryItems = [
+        { id: 'attendance', label: 'My Attendance', icon: UserCheck },
+        { id: 'leaves', label: 'Apply for Leave', icon: ClipboardList },
+        { id: 'notices', label: 'Notice Board', icon: Megaphone }
+      ];
     }
-
-    navItems.push(
-      { id: 'leaves', label: 'Leave & Substitution', icon: UserMinus, badge: null },
-      { id: 'workload', label: 'My Teaching Load', icon: Scale, badge: null },
-      { id: 'directory', label: 'Academic Resources', icon: FolderTree, badge: null }
-    );
   } else if (role === 'Student') {
+    // 3. Student Portal Navigation (Strict Personal Access Only)
     navItems = [
-      { id: 'student_portal', label: 'My Batch Schedule', icon: CalendarDays, badge: 'Enrolled' },
-      { id: 'directory', label: 'Course Directory', icon: FolderTree, badge: null },
+      { id: 'student_portal', label: 'My Class Schedule', icon: CalendarDays },
+    ];
+
+    secondaryItems = [
+      { id: 'attendance', label: 'Attendance Records', icon: UserCheck },
+      { id: 'leaves', label: 'Submit Leave Request', icon: ClipboardList },
+      { id: 'notices', label: 'Notice Board', icon: Megaphone }
     ];
   }
 
   return (
-    <aside className="w-64 bg-white/80 backdrop-blur-md border-r border-slate-200/80 flex flex-col justify-between shrink-0 min-h-[calc(100vh-4rem)]">
-      <div className="p-4 space-y-6">
+    <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between shrink-0 min-h-[calc(100vh-4rem)] p-4 select-none">
+      <div className="space-y-6">
         
-        {/* Department / Status Banner */}
-        <div className="p-3.5 bg-gradient-to-br from-slate-50 to-indigo-50/30 border border-slate-200/80 rounded-2xl shadow-2xs">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-100/80 border border-indigo-200/60 flex items-center justify-center text-indigo-700 shadow-xs">
-              <BookOpen className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-900 tracking-wide uppercase">Dept of CSE</p>
-              <p className="text-[11px] text-slate-500 font-medium">
-                {role === 'Student' 
-                  ? `${currentUser?.enrolledBatch?.name || 'CSE Section A'}` 
-                  : isClassCoordinator 
-                    ? `Coordinator: ${currentUser?.coordinatedBatch?.name || 'Section A'}`
-                    : 'Semester 4 • 2026-27'}
-              </p>
-            </div>
+        {/* Brand / Logo Header */}
+        <div className="flex items-center space-x-3 px-2 pt-1 pb-2">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0">
+            <GraduationCap className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="font-bold text-slate-900 text-[15px] leading-tight tracking-tight">
+              Faculty Management
+            </h1>
+            <p className="font-bold text-slate-900 text-[15px] leading-tight tracking-tight">
+              System
+            </p>
           </div>
         </div>
 
-        {/* Navigation Links */}
+        {/* Primary Navigation Links */}
         <nav className="space-y-1">
-          <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-            {role === 'HOD' ? 'Administrator Menu' : role === 'Faculty' ? 'Faculty Menu' : 'Student Menu'}
-          </p>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -95,43 +125,75 @@ export default function Sidebar({ activeTab, setActiveTab, currentUser }) {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                className={`w-full flex items-center space-x-3.5 px-3.5 py-2.5 rounded-xl text-sm transition-all ${
                   isActive
-                    ? 'bg-gradient-to-r from-indigo-50 to-indigo-50/50 text-indigo-700 font-bold border-l-2 border-indigo-600 shadow-2xs pl-2.5'
-                    : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-900'
+                    ? 'bg-[#EBF3FF] text-[#2563EB] font-bold shadow-xs'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 font-medium'
                 }`}
               >
-                <div className="flex items-center space-x-2.5">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
-                  <span className="truncate">{item.label}</span>
-                </div>
-                {item.badge && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold tracking-tight shrink-0 ml-1.5 ${
-                    isActive 
-                      ? 'bg-indigo-100 text-indigo-800 border border-indigo-200/60' 
-                      : 'bg-slate-100 text-slate-600 border border-slate-200/50'
-                  }`}>
-                    {item.badge}
-                  </span>
-                )}
+                <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-[#2563EB]' : 'text-slate-400'}`} />
+                <span className="truncate">{item.label}</span>
               </button>
             );
           })}
         </nav>
+
+        {/* Secondary Contextual Menu */}
+        {secondaryItems.length > 0 && (
+          <div className="pt-2 border-t border-slate-100">
+            <p className="px-3.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+              Operations & Alerts
+            </p>
+            <nav className="space-y-1">
+              {secondaryItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    className={`w-full flex items-center space-x-3.5 px-3.5 py-2 rounded-xl text-xs transition-all ${
+                      isActive
+                        ? 'bg-[#EBF3FF] text-[#2563EB] font-bold'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 font-medium'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#2563EB]' : 'text-slate-400'}`} />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        )}
       </div>
 
-      {/* Footer Info Box */}
-      <div className="p-4 border-t border-slate-200/80 space-y-2">
-        <div className="p-3 bg-gradient-to-br from-indigo-50/60 to-violet-50/40 rounded-xl border border-indigo-100/80 text-[11px] text-indigo-950 shadow-2xs">
-          <div className="flex items-center space-x-1.5 font-bold mb-1 text-indigo-800">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-            <span>EduSchedAI Core v2.4</span>
+      {/* Bottom Promo Card matching the screenshot */}
+      <div className="pt-4">
+        <div className="p-4 bg-gradient-to-br from-[#EEF5FF] to-[#E5EFFF] rounded-2xl border border-blue-100 text-center relative overflow-hidden shadow-xs">
+          <div className="absolute -top-6 -right-6 w-20 h-20 bg-blue-400/10 rounded-full blur-xl pointer-events-none" />
+
+          <div className="w-16 h-16 mx-auto mb-2 bg-white/80 rounded-2xl flex items-center justify-center shadow-xs text-blue-600">
+            <svg viewBox="0 0 64 64" className="w-12 h-12 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <rect x="12" y="14" width="40" height="28" rx="3" className="fill-blue-50/80 stroke-blue-600" />
+              <path d="M8 46h48a2 2 0 0 1 2 2v2H6v-2a2 2 0 0 1 2-2z" className="fill-blue-200 stroke-blue-600" />
+              <circle cx="32" cy="24" r="5" className="fill-blue-300 stroke-blue-600" />
+              <path d="M22 36c0-4 4-6 10-6s10 2 10 6" className="fill-blue-400 stroke-blue-600" />
+            </svg>
           </div>
-          <p className="text-slate-600 leading-relaxed text-[10px]">
-            Role-Based Access: HOD adds faculty, Class Coordinator adds students.
+
+          <h3 className="font-bold text-slate-900 text-xs leading-snug">
+            Better Management for a Brighter Future
+          </h3>
+          <p className="text-[11px] text-slate-500 leading-relaxed mt-1.5 font-normal">
+            {role === 'Student' 
+              ? 'View your class schedule, room locations, and track your attendance.'
+              : role === 'Faculty'
+              ? 'Manage teaching assignments, log attendance, and review schedules.'
+              : 'Efficiently manage faculty, subjects, and schedules — all in one place.'}
           </p>
         </div>
-        <p className="text-[10px] text-center text-slate-400 font-medium">UIET Academic Management System</p>
       </div>
     </aside>
   );

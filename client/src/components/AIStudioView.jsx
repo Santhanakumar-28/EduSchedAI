@@ -5,10 +5,11 @@ import {
   Sliders, 
   CheckCircle2, 
   Zap, 
-  Timer, 
-  Layers, 
   ShieldCheck,
-  Scale
+  Scale,
+  Settings,
+  Layers,
+  ArrowRight
 } from 'lucide-react';
 
 export default function AIStudioView({ 
@@ -28,89 +29,100 @@ export default function AIStudioView({
         workloadBalance: workloadWeight,
         minimizeStudentGaps: studentGapWeight,
         minimizeFacultyGaps: facultyGapWeight,
-        maxConsecutiveLectures: 60
+        maxConsecutiveLectures: consecutiveLectures
       },
       maxGenerations
     });
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Top Banner Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center">
-            <Cpu className="w-5 h-5 mr-2 text-indigo-600" />
-            AI Scheduling Studio & Heuristic Tuner
-          </h2>
-          <p className="text-xs text-slate-500">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Cpu className="w-5 h-5" />
+            </div>
+            <span>AI Scheduling Studio & Heuristic Tuner</span>
+          </h1>
+          <p className="text-xs text-slate-500 font-medium mt-1">
             Configure multi-objective fitness weights and launch the hybrid CSP + Genetic Algorithm engine.
           </p>
         </div>
+
+        <button
+          onClick={handleTrigger}
+          disabled={isGenerating}
+          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-sm transition-all shrink-0 disabled:opacity-50"
+        >
+          <Sparkles className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
+          <span>{isGenerating ? 'Optimizing Schedule...' : 'Launch AI Solver'}</span>
+        </button>
       </div>
 
-      {/* Solver Telemetry KPI Bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-slate-500 block text-[11px] font-medium">Execution Runtime</span>
-          <span className="text-xl font-extrabold text-slate-900 font-mono">
-            {metrics?.executionTimeMs ?? 371} ms
+      {/* Solver Telemetry KPI Bar - 5 Clean White Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-xs">
+          <span className="text-slate-400 block text-[11px] font-semibold">Execution Runtime</span>
+          <span className="text-2xl font-bold text-slate-900 mt-0.5 block font-mono">
+            {metrics?.executionTimeMs ?? 170} ms
           </span>
-          <span className="text-[10px] text-emerald-600 block mt-0.5 font-semibold">⚡ Ultra-Fast Solver</span>
+          <span className="text-[10px] text-emerald-600 font-bold block mt-1">⚡ Ultra-Fast Solver</span>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-slate-500 block text-[11px] font-medium">Hard Clashes</span>
-          <span className="text-xl font-extrabold text-emerald-600 font-mono">
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-xs">
+          <span className="text-slate-400 block text-[11px] font-semibold">Hard Clashes</span>
+          <span className="text-2xl font-bold text-emerald-600 mt-0.5 block font-mono">
             {metrics?.hardViolations ?? 0}
           </span>
-          <span className="text-[10px] text-slate-400 block mt-0.5">Target: 0 (Inviolable)</span>
+          <span className="text-[10px] text-slate-400 font-medium block mt-1">Target: 0 (Inviolable)</span>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-slate-500 block text-[11px] font-medium">Workload Gini</span>
-          <span className="text-xl font-extrabold text-indigo-600 font-mono">
-            {metrics?.workloadGiniIndex ?? '0.238'}
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-xs">
+          <span className="text-slate-400 block text-[11px] font-semibold">Workload Gini</span>
+          <span className="text-2xl font-bold text-blue-600 mt-0.5 block font-mono">
+            {metrics?.workloadGiniIndex ?? '0.2639'}
           </span>
-          <span className="text-[10px] text-indigo-500 block mt-0.5 font-semibold">Balanced across cadres</span>
+          <span className="text-[10px] text-blue-500 font-bold block mt-1">Balanced across cadres</span>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-slate-500 block text-[11px] font-medium">Soft Penalty</span>
-          <span className="text-xl font-extrabold text-slate-900 font-mono">
-            {metrics?.softPenaltyScore ?? '5.2'}
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-xs">
+          <span className="text-slate-400 block text-[11px] font-semibold">Soft Penalty</span>
+          <span className="text-2xl font-bold text-slate-900 mt-0.5 block font-mono">
+            {metrics?.softPenaltyScore ?? '7.4'}
           </span>
-          <span className="text-[10px] text-slate-400 block mt-0.5">Weighted Cost</span>
+          <span className="text-[10px] text-slate-400 font-medium block mt-1">Weighted Cost</span>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs col-span-2 lg:col-span-1">
-          <span className="text-slate-500 block text-[11px] font-medium">Room Utilization</span>
-          <span className="text-xl font-extrabold text-slate-900 font-mono">
-            {metrics?.roomUtilizationPercent ?? '23.3'}%
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-xs col-span-2 lg:col-span-1">
+          <span className="text-slate-400 block text-[11px] font-semibold">Room Utilization</span>
+          <span className="text-2xl font-bold text-slate-900 mt-0.5 block font-mono">
+            {metrics?.roomUtilizationPercent ?? '25'}%
           </span>
-          <span className="text-[10px] text-slate-400 block mt-0.5">Active Teaching Hours</span>
+          <span className="text-[10px] text-slate-400 font-medium block mt-1">Active Teaching Hours</span>
         </div>
       </div>
 
       {/* Main Configuration Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Left 2 Cols: Weight Tuners */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-5 text-xs">
+        {/* Left 8 Cols: Weight Tuners */}
+        <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-100 p-6 shadow-xs space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-sm text-slate-900 flex items-center">
-              <Sliders className="w-4 h-4 mr-2 text-indigo-600" />
-              Optimization Weights & Penalties
-            </h3>
-            <span className="text-[11px] text-slate-400">Soft Constraint Objective Vector</span>
+            <div className="flex items-center space-x-2">
+              <Sliders className="w-4 h-4 text-blue-600" />
+              <h2 className="text-sm font-bold text-slate-900">Optimization Weights & Penalties</h2>
+            </div>
+            <span className="text-[11px] font-semibold text-slate-400">Soft Constraint Objective Vector</span>
           </div>
 
-          {/* Slider 1 */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between font-semibold text-slate-800">
-              <span>Faculty Workload Balancing Weight</span>
-              <span className="text-indigo-600 font-mono font-bold">{workloadWeight}%</span>
+          {/* Slider 1: Workload Balance */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-bold text-slate-800">Faculty Workload Balancing Weight</span>
+              <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md font-mono">{workloadWeight}%</span>
             </div>
             <input
               type="range"
@@ -118,16 +130,16 @@ export default function AIStudioView({
               max="100"
               value={workloadWeight}
               onChange={(e) => setWorkloadWeight(Number(e.target.value))}
-              className="w-full accent-indigo-600 cursor-pointer"
+              className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
             />
-            <p className="text-[11px] text-slate-500">Penalizes deviations from cadre target hours (Prof: 14h, Assoc: 16h, Asst: 18h).</p>
+            <p className="text-[11px] text-slate-400">Penalizes deviations from cadre target hours (Prof: 14h, Assoc: 16h, Asst: 18h).</p>
           </div>
 
-          {/* Slider 2 */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between font-semibold text-slate-800">
-              <span>Minimize Student Idle Gaps</span>
-              <span className="text-indigo-600 font-mono font-bold">{studentGapWeight}%</span>
+          {/* Slider 2: Minimize Student Gaps */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-bold text-slate-800">Minimize Student Idle Gaps</span>
+              <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md font-mono">{studentGapWeight}%</span>
             </div>
             <input
               type="range"
@@ -135,16 +147,16 @@ export default function AIStudioView({
               max="100"
               value={studentGapWeight}
               onChange={(e) => setStudentGapWeight(Number(e.target.value))}
-              className="w-full accent-indigo-600 cursor-pointer"
+              className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
             />
-            <p className="text-[11px] text-slate-500">Discourages empty break hours between lectures on the same day for students.</p>
+            <p className="text-[11px] text-slate-400">Discourages empty break hours between lectures on the same day for students.</p>
           </div>
 
-          {/* Slider 3 */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between font-semibold text-slate-800">
-              <span>Minimize Faculty Waiting Windows</span>
-              <span className="text-indigo-600 font-mono font-bold">{facultyGapWeight}%</span>
+          {/* Slider 3: Minimize Faculty Waiting */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-bold text-slate-800">Minimize Faculty Waiting Windows</span>
+              <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md font-mono">{facultyGapWeight}%</span>
             </div>
             <input
               type="range"
@@ -152,84 +164,91 @@ export default function AIStudioView({
               max="100"
               value={facultyGapWeight}
               onChange={(e) => setFacultyGapWeight(Number(e.target.value))}
-              className="w-full accent-indigo-600 cursor-pointer"
+              className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
             />
-            <p className="text-[11px] text-slate-500">Compacts faculty daily schedules to reduce idle on-campus waiting periods.</p>
+            <p className="text-[11px] text-slate-400">Compacts faculty daily schedules to reduce idle on-campus waiting periods.</p>
           </div>
 
-          {/* Parameters Row */}
-          <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+          {/* Additional Parameters */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Max Consecutive Hours</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Max Consecutive Hours</label>
               <select
                 value={consecutiveLectures}
                 onChange={(e) => setConsecutiveLectures(Number(e.target.value))}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 font-medium"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
                 <option value={2}>2 Continuous Hours (Standard)</option>
-                <option value={3}>3 Continuous Hours</option>
+                <option value={3}>3 Continuous Hours (Extended)</option>
               </select>
             </div>
+
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Simulated Annealing Iterations</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Genetic / Simulated Annealing Iterations</label>
               <select
                 value={maxGenerations}
                 onChange={(e) => setMaxGenerations(Number(e.target.value))}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 font-medium"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
-                <option value={400}>400 Generations (Fast)</option>
-                <option value={600}>600 Generations (Optimal)</option>
-                <option value={1000}>1,000 Generations (Deep Search)</option>
+                <option value={300}>300 Generations (Fast Preview)</option>
+                <option value={600}>600 Generations (Optimal Quality)</option>
+                <option value={1000}>1000 Generations (Deep Exploration)</option>
               </select>
             </div>
           </div>
-
-          {/* Action Trigger */}
-          <div className="pt-4 flex justify-end">
-            <button
-              onClick={handleTrigger}
-              disabled={isGenerating}
-              className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-100 hover:opacity-95 transition-all flex items-center space-x-2 disabled:opacity-50"
-            >
-              <Sparkles className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
-              <span>{isGenerating ? 'Solving Stage 1 CSP & Stage 2 Annealing...' : 'Generate New Timetable with AI'}</span>
-            </button>
-          </div>
-
         </div>
 
-        {/* Right Col: Two-Stage Architecture Explainer */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4 text-xs">
-          <h3 className="font-bold text-sm text-slate-900 flex items-center">
-            <Zap className="w-4 h-4 mr-2 text-amber-500" />
-            Two-Stage Solver Architecture
-          </h3>
+        {/* Right 4 Cols: Architecture & Guarantees */}
+        <div className="lg:col-span-4 space-y-4">
+          
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs space-y-4">
+            <div className="flex items-center space-x-2">
+              <Zap className="w-4 h-4 text-amber-500" />
+              <h2 className="text-sm font-bold text-slate-900">Two-Stage Solver Architecture</h2>
+            </div>
 
-          <div className="space-y-3">
-            <div className="p-3.5 bg-indigo-50/50 rounded-xl border border-indigo-100">
-              <span className="font-bold text-indigo-900 block text-xs mb-1">Stage 1: Constructive CSP</span>
+            {/* Stage 1 Box */}
+            <div className="p-3.5 bg-blue-50/70 border border-blue-100 rounded-xl space-y-1">
+              <span className="text-[11px] font-bold text-blue-700 block">Stage 1: Constructive CSP</span>
               <p className="text-[11px] text-slate-600 leading-relaxed">
-                Uses Most Constrained Variable (MRV) ordering to allocate 2-hour lab practicals first into specialized computer/hardware labs, followed by forward conflict checks to guarantee zero room, faculty, or student clashes.
+                Uses Most Constrained Variable (MRV) ordering to allocate 2-hour lab practicals first into specialized computer labs, followed by forward conflict checks to guarantee zero clashes.
               </p>
             </div>
 
-            <div className="p-3.5 bg-emerald-50/50 rounded-xl border border-emerald-100">
-              <span className="font-bold text-emerald-900 block text-xs mb-1">Stage 2: Simulated Annealing</span>
+            {/* Stage 2 Box */}
+            <div className="p-3.5 bg-emerald-50/70 border border-emerald-100 rounded-xl space-y-1">
+              <span className="text-[11px] font-bold text-emerald-700 block">Stage 2: Simulated Annealing</span>
               <p className="text-[11px] text-slate-600 leading-relaxed">
-                Navigates the feasible solution space using conflict-preserving mutations ($T_0=100$) to minimize Gini workload variance and eliminate fragmented idle gaps.
+                Navigates the feasible solution space using conflict-preserving mutations to minimize Gini workload variance and eliminate fragmented idle gaps.
               </p>
             </div>
 
-            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="font-bold text-slate-800 block text-xs mb-1">Guarantees</span>
-              <ul className="text-[11px] text-slate-600 space-y-1 list-disc list-inside">
-                <li>0 Faculty double-bookings</li>
-                <li>0 Batch time collisions</li>
-                <li>0 Room double-bookings</li>
-                <li>Period 4 reserved for Lunch</li>
+            {/* Invariant Guarantees */}
+            <div className="pt-2 border-t border-slate-100">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                Mathematical Guarantees
+              </span>
+              <ul className="space-y-1.5 text-xs text-slate-600">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>0 Faculty double-bookings</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>0 Batch / cohort time collisions</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>0 Room / laboratory double-bookings</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>Period 4 guaranteed Lunch break</span>
+                </li>
               </ul>
             </div>
           </div>
+
         </div>
 
       </div>
