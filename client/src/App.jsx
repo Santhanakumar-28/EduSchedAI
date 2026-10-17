@@ -19,6 +19,8 @@ import StudentPortalView from './components/StudentPortalView';
 import AttendanceView from './components/AttendanceView';
 import NoticesView from './components/NoticesView';
 import AdminDashboardView from './components/AdminDashboardView';
+import { apiFetch } from './api';
+
 
 export default function App() {
   // Authentication State - Defaults to null so Login Page opens by default
@@ -156,7 +158,8 @@ export default function App() {
       setIsGenerating(false);
     }
   };
-
+ const response = await apiFetch('/api/users');
+ const users = await response.json();
   // Export CSV
   const handleExportCSV = () => {
     window.location.href = '/api/export/csv';
