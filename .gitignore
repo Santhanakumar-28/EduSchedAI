@@ -38,3 +38,4 @@ ui-template/
 .env.*.local
 *.env
 !client/.env.production
+!.env.production

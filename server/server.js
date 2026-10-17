@@ -53,8 +53,35 @@ const authLimiter = createRateLimiter({ windowMs: 60000, maxRequests: 35 });
 const app = express();
 const PORT = process.env.PORT || 5050;
 
-app.use(cors({ origin: '*' }));
+// CORS Configuration - Permissive for deployed frontend and dev environments
+const corsOptions = {
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'Accept'],
+  exposedHeaders: ['Content-Disposition']
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
 app.use(express.json());
+
+// Root health check endpoint - guarantees JSON status for browser and Render ping
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'EduSchedAI Backend API',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      status: '/api/status',
+      dataset: '/api/dataset',
+      timetable: '/api/timetable/current',
+      login: '/api/auth/login',
+      exportCsv: '/api/export/csv'
+    }
+  });
+});
 
 // In-Memory State Store (syncs with DB or runs standalone)
 let currentDataset = {
@@ -3385,6 +3412,25 @@ app.post('/api/notifications/read-all', authenticateToken, (req, res) => {
     .filter((n) => String(n.userId) === String(req.user.id) || String(n.userId) === String(req.user.facultyId))
     .forEach((n) => (n.isRead = true));
   res.json({ success: true, message: 'All notifications marked as read.' });
+});
+
+// 404 Catch-All for undefined /api routes - guarantees JSON response
+app.all('/api/*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    status: 404,
+    message: `API endpoint '${req.method} ${req.path}' not found on this server.`
+  });
+});
+
+// Global Express Error Handler ensuring valid JSON responses
+app.use((err, req, res, next) => {
+  console.error('Unhandled server error:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    status: err.status || 500,
+    message: err.message || 'Internal server error occurred.'
+  });
 });
 
 // Start Server

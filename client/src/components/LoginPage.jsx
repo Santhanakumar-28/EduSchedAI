@@ -80,10 +80,11 @@ export default function LoginPage({ onLoginSuccess }) {
         localStorage.setItem('edusched_token', data.token);
         onLoginSuccess(data.user);
       } else {
-        setError(data.message || 'Authentication failed. Please verify credentials.');
+        const errorDetail = data?.message || data?.error || (data?.status ? `Authentication failed (HTTP ${data.status})` : 'Authentication failed. Please verify credentials.');
+        setError(errorDetail);
       }
     } catch (err) {
-      setError('Connection error with server: ' + err.message);
+      setError('Connection error with server: ' + (err.message || 'Unable to connect to backend'));
     } finally {
       setIsLoading(false);
     }
@@ -125,10 +126,11 @@ export default function LoginPage({ onLoginSuccess }) {
           setHodSuccess(null);
         }, 1500);
       } else {
-        setHodError(data.message || 'Registration rejected.');
+        const errorDetail = data?.message || data?.error || (data?.status ? `Registration rejected (HTTP ${data.status})` : 'Registration rejected.');
+        setHodError(errorDetail);
       }
     } catch (err) {
-      setHodError('Connection error: ' + err.message);
+      setHodError('Connection error: ' + (err.message || 'Unable to connect to backend'));
     } finally {
       setHodLoading(false);
     }

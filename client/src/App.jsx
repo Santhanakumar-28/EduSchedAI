@@ -76,8 +76,10 @@ export default function App() {
       const datasetJson = await datasetRes.json();
       const timetableJson = await timetableRes.json();
 
-      if (datasetJson.success) setDataset(datasetJson.data);
-      if (timetableJson.success) {
+      if (datasetRes.ok && datasetJson?.success && datasetJson?.data) {
+        setDataset(datasetJson.data);
+      }
+      if (timetableRes.ok && timetableJson?.success && timetableJson?.data) {
         setSchedule(timetableJson.data.schedule || []);
         setMetrics(timetableJson.data.metrics || null);
         setWorkloadDetails(timetableJson.data.workloadDetails || null);
@@ -119,11 +121,13 @@ export default function App() {
         body: JSON.stringify({ usernameOrEmail: emailToLogin, password: 'EduSched@123' })
       });
       const data = await res.json();
-      if (data.success && data.user) {
+      if (res.ok && data?.success && data?.user) {
         localStorage.setItem('edusched_user', JSON.stringify(data.user));
         localStorage.setItem('edusched_token', data.token);
         setCurrentUser(data.user);
         loadData();
+      } else {
+        alert(data?.message || `Failed to switch user (HTTP ${res.status})`);
       }
     } catch (e) {
       console.error('Failed to switch persona:', e);
@@ -141,17 +145,17 @@ export default function App() {
       });
 
       const json = await res.json();
-      if (json.success) {
-        setSchedule(json.data.schedule);
-        setMetrics(json.data.metrics);
-        setWorkloadDetails(json.data.workloadDetails);
+      if (res.ok && json?.success && json?.data) {
+        setSchedule(json.data.schedule || []);
+        setMetrics(json.data.metrics || null);
+        setWorkloadDetails(json.data.workloadDetails || null);
         setActiveTab('timetable');
       } else {
-        alert(json.message || 'Error generating timetable');
+        alert(json?.message || `Error generating timetable (HTTP ${res.status})`);
       }
     } catch (err) {
       console.error(err);
-      alert('Error triggering AI engine: ' + err.message);
+      alert('Error triggering AI engine: ' + (err.message || 'Unknown error'));
     } finally {
       setIsGenerating(false);
     }
